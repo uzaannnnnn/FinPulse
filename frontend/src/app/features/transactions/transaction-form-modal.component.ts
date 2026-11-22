@@ -1,5 +1,4 @@
 import { CommonModule } from '@angular/common';
-import { HttpErrorResponse } from '@angular/common/http';
 import {
   Component,
   computed,
@@ -16,14 +15,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import {
-  AbstractControl,
-  FormBuilder,
-  ReactiveFormsModule,
-  ValidationErrors,
-  ValidatorFn,
-  Validators,
-} from '@angular/forms';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize } from 'rxjs/operators';
 import { CategoryDto, TransactionType } from '../../core/models/category.model';
 import {
@@ -33,7 +25,8 @@ import {
 } from '../../core/models/transaction.model';
 import { ToastService } from '../../core/services/toast.service';
 import { TransactionService } from '../../core/services/transaction.service';
-import { extractApiError } from '../../core/utils/error.util';
+import { extractApiError, isUnauthorizedError } from '../../core/utils/error.util';
+import { positiveDecimalValidator } from '../../core/utils/form-validators.util';
 import { modalPopIn } from '../../shared/animations';
 import {
   AppSelectComponent,
@@ -44,36 +37,6 @@ import { getTodayIsoDate, sanitizeHttpUrl } from '../../shared/utils/format.util
 
 const ALLOWED_RECEIPT_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const MAX_RECEIPT_BYTES = 5 * 1024 * 1024;
-const MAX_AMOUNT = 9_999_999_999_999.99;
-
-function hasMoreThanTwoDecimals(raw: unknown, num: number): boolean {
-  const str = String(raw).trim();
-  if (/^[+-]?\d+(\.\d+)?$/.test(str)) {
-    const dotIndex = str.indexOf('.');
-    return dotIndex >= 0 && str.length - dotIndex - 1 > 2;
-  }
-  return Math.abs(num * 100 - Math.round(num * 100)) > 1e-8;
-}
-
-function positiveAmountValidator(): ValidatorFn {
-  return (control: AbstractControl): ValidationErrors | null => {
-    const raw = control.value;
-    if (raw === null || raw === undefined || raw === '') {
-      return null;
-    }
-    const num = Number(raw);
-    if (!Number.isFinite(num) || num <= 0) {
-      return { positiveAmount: true };
-    }
-    if (num > MAX_AMOUNT) {
-      return { maxAmount: true };
-    }
-    if (hasMoreThanTwoDecimals(raw, num)) {
-      return { maxDecimals: true };
-    }
-    return null;
-  };
-}
 
 @Component({
   selector: 'app-transaction-form-modal',
@@ -130,7 +93,10 @@ export class TransactionFormModalComponent implements OnDestroy {
   readonly form = this.fb.nonNullable.group({
     type: ['EXPENSE' as TransactionType, [Validators.required]],
     categoryId: ['', [Validators.required]],
-    amount: [null as number | null, [Validators.required, positiveAmountValidator()]],
+    amount: [
+      null as number | null,
+      [Validators.required, positiveDecimalValidator('positiveAmount', 'maxAmount')],
+    ],
     transactionDate: [getTodayIsoDate(), [Validators.required]],
     description: ['', [Validators.maxLength(500)]],
   });
@@ -277,8 +243,7 @@ export class TransactionFormModalComponent implements OnDestroy {
             );
             this.receiptError.set(parsed.message);
             this.submitError.set(parsed.message);
-            const isUnauthorized = error instanceof HttpErrorResponse && error.status === 401;
-            if (!isUnauthorized) {
+            if (!isUnauthorizedError(error)) {
               this.toastService.error('Upload struk gagal');
             }
           },
@@ -335,8 +300,7 @@ export class TransactionFormModalComponent implements OnDestroy {
         );
         this.submitError.set(parsed.message);
         this.fieldValidationErrors.set(parsed.validationErrors);
-        const isUnauthorized = error instanceof HttpErrorResponse && error.status === 401;
-        if (!isUnauthorized) {
+        if (!isUnauthorizedError(error)) {
           this.toastService.error('Gagal menyimpan');
         }
       },

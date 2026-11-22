@@ -70,20 +70,6 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID>,
     List<TypeTotalProjection> sumByTypeForUser(@Param("userId") UUID userId);
 
     @Query("""
-            SELECT t.type AS type, SUM(t.amount) AS total
-            FROM Transaction t
-            WHERE t.user.id = :userId
-              AND t.transactionDate >= :startDate
-              AND t.transactionDate <= :endDate
-            GROUP BY t.type
-            """)
-    List<TypeTotalProjection> sumByTypeForUserInRange(
-            @Param("userId") UUID userId,
-            @Param("startDate") LocalDate startDate,
-            @Param("endDate") LocalDate endDate
-    );
-
-    @Query("""
             SELECT COUNT(t)
             FROM Transaction t
             WHERE t.user.id = :userId

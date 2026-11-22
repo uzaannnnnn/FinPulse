@@ -35,11 +35,14 @@ export class AppComponent implements OnInit {
       });
 
     if (typeof window !== 'undefined' && this.authService.getAccessToken()) {
-      this.authService.loadProfile().subscribe({
-        error: () => {
-          // Handled by authInterceptor if 401; ignore network errors on background sync
-        },
-      });
+      this.authService
+        .loadProfile()
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe({
+          error: () => {
+            // Handled by authInterceptor if 401; ignore network errors on background sync
+          },
+        });
     }
   }
 

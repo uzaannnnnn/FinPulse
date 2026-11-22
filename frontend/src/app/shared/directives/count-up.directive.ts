@@ -71,7 +71,6 @@ export class CountUpDirective {
     const from = this.hasInitialized ? this.currentValue : 0;
     this.hasInitialized = true;
 
-    // Paint final target immediately for reduced-motion, NoopAnimations, zero duration, or equal values.
     if (prefersReducedMotion || isNoopAnimations || durationMs === 0 || from === target) {
       this.currentValue = target;
       this.renderValue(target, formatMode, prefixStr, suffixStr);

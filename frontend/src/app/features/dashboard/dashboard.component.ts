@@ -40,7 +40,7 @@ import { DashboardService } from '../../core/services/dashboard.service';
 import { ReportService } from '../../core/services/report.service';
 import { SyncStatusService } from '../../core/services/sync-status.service';
 import { ToastService } from '../../core/services/toast.service';
-import { extractApiError } from '../../core/utils/error.util';
+import { extractApiError, isUnauthorizedError } from '../../core/utils/error.util';
 import { springEnter, staggerList } from '../../shared/animations';
 import {
   AppSelectComponent,
@@ -51,9 +51,11 @@ import { SpinnerComponent } from '../../shared/components/spinner/spinner.compon
 import { CountUpDirective } from '../../shared/directives/count-up.directive';
 import { Tilt3dDirective } from '../../shared/directives/tilt-3d.directive';
 import {
+  clampPercentage,
   formatDateId,
   formatDateTimeId,
   formatIdr,
+  formatPercent,
   getMonthName,
   getYearOptions,
   MONTH_OPTIONS,
@@ -184,8 +186,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
               const parsed = extractApiError(error, 'Gagal memuat ringkasan dashboard.');
               this.errorMessage.set(parsed.message);
               this.syncStatusService.markError();
-              const isUnauthorized = error instanceof HttpErrorResponse && error.status === 401;
-              if (!isUnauthorized) {
+              if (!isUnauthorizedError(error)) {
                 this.toastService.error('Gagal memuat data');
               }
               return of<DashboardSummaryDto | null>(null);
@@ -282,8 +283,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         error: (error: unknown) => {
           const isServiceUnavailable =
             error instanceof HttpErrorResponse && error.status === 503;
-          const isUnauthorized = error instanceof HttpErrorResponse && error.status === 401;
-          if (!isUnauthorized) {
+          if (!isUnauthorizedError(error)) {
             this.toastService.error(
               isServiceUnavailable ? 'Antrean tidak tersedia' : 'Ekspor gagal'
             );
@@ -301,17 +301,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   getClampedPercentage(percentage: number): number {
-    if (!Number.isFinite(percentage)) {
-      return 0;
-    }
-    return Math.min(100, Math.max(0, percentage));
+    return clampPercentage(percentage);
   }
 
   formatPercent(percentage: number): string {
-    if (!Number.isFinite(percentage)) {
-      return '0.0%';
-    }
-    return `${percentage.toFixed(1)}%`;
+    return formatPercent(percentage);
   }
 
   getBudgetBarClass(budget: BudgetDto): string {

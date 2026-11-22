@@ -146,6 +146,20 @@ export function formatDateTimeId(isoDateTime: string | null | undefined): string
   return `${day} ${month} ${year}, ${hours}:${minutes}`;
 }
 
+export function clampPercentage(percentage: number): number {
+  if (!Number.isFinite(percentage)) {
+    return 0;
+  }
+  return Math.min(100, Math.max(0, percentage));
+}
+
+export function formatPercent(percentage: number): string {
+  if (!Number.isFinite(percentage)) {
+    return '0.0%';
+  }
+  return `${percentage.toFixed(1)}%`;
+}
+
 /**
  * Formats a byte size into human-readable B / KB / MB string.
  */

@@ -112,9 +112,13 @@ export class HeartbeatWidgetComponent {
   readonly income = input<number>(0);
   readonly expense = input<number>(0);
 
+  private readonly normalizedAmounts = computed(() => ({
+    inc: Math.max(0, Number.isFinite(this.income()) ? this.income() : 0),
+    exp: Math.max(0, Number.isFinite(this.expense()) ? this.expense() : 0),
+  }));
+
   readonly ratio = computed<number>(() => {
-    const inc = Math.max(0, Number.isFinite(this.income()) ? this.income() : 0);
-    const exp = Math.max(0, Number.isFinite(this.expense()) ? this.expense() : 0);
+    const { inc, exp } = this.normalizedAmounts();
     if (inc === 0 && exp === 0) {
       return 0;
     }
@@ -125,8 +129,7 @@ export class HeartbeatWidgetComponent {
   });
 
   readonly zone = computed<PulseZone>(() => {
-    const inc = Math.max(0, Number.isFinite(this.income()) ? this.income() : 0);
-    const exp = Math.max(0, Number.isFinite(this.expense()) ? this.expense() : 0);
+    const { inc, exp } = this.normalizedAmounts();
     if (inc === 0 && exp === 0) {
       return 'idle';
     }

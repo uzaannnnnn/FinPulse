@@ -42,6 +42,11 @@ public class ReportGeneratorService {
 
     private static final byte[] UTF8_BOM = new byte[]{(byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
     private static final BigDecimal ZERO = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+    private static final Locale ID_LOCALE = Locale.forLanguageTag("id-ID");
+    private static final Color COLOR_TITLE = new Color(15, 23, 42);
+    private static final Color COLOR_SUBTITLE = new Color(71, 85, 105);
+    private static final Color COLOR_BODY = new Color(30, 41, 59);
+    private static final Color COLOR_TABLE_HEADER_BG = new Color(16, 185, 129);
     private static final DateTimeFormatter PERIOD_FORMATTER =
             DateTimeFormatter.ofPattern("MMM yyyy", Locale.ENGLISH);
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE;
@@ -202,16 +207,17 @@ public class ReportGeneratorService {
     ) {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         Document document = new Document(PageSize.A4, 36, 36, 40, 40);
+        NumberFormat idrFormat = createIdrNumberFormat();
         try {
             PdfWriter.getInstance(document, outputStream);
             document.open();
 
-            Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18, new Color(15, 23, 42));
-            Font subtitleFont = FontFactory.getFont(FontFactory.HELVETICA, 11, new Color(71, 85, 105));
-            Font sectionFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, new Color(15, 23, 42));
+            Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18, COLOR_TITLE);
+            Font subtitleFont = FontFactory.getFont(FontFactory.HELVETICA, 11, COLOR_SUBTITLE);
+            Font sectionFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, COLOR_TITLE);
             Font tableHeaderFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, Color.WHITE);
-            Font bodyFont = FontFactory.getFont(FontFactory.HELVETICA, 9, new Color(30, 41, 59));
-            Font boldBodyFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, new Color(15, 23, 42));
+            Font bodyFont = FontFactory.getFont(FontFactory.HELVETICA, 9, COLOR_BODY);
+            Font boldBodyFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9, COLOR_TITLE);
 
             Paragraph title = new Paragraph("FinPulse - Laporan Keuangan Bulanan", titleFont);
             title.setSpacingAfter(4f);
@@ -221,104 +227,10 @@ public class ReportGeneratorService {
             subtitle.setSpacingAfter(14f);
             document.add(subtitle);
 
-            // KPI Summary Table
-            Paragraph kpiHeader = new Paragraph("Ringkasan KPI", sectionFont);
-            kpiHeader.setSpacingAfter(6f);
-            document.add(kpiHeader);
-
-            PdfPTable kpiTable = new PdfPTable(4);
-            kpiTable.setWidthPercentage(100);
-            kpiTable.setSpacingAfter(14f);
-            addHeaderCell(kpiTable, "Total Pemasukan", tableHeaderFont);
-            addHeaderCell(kpiTable, "Total Pengeluaran", tableHeaderFont);
-            addHeaderCell(kpiTable, "Sisa Saldo", tableHeaderFont);
-            addHeaderCell(kpiTable, "Jumlah Transaksi", tableHeaderFont);
-
-            addBodyCell(kpiTable, formatIdr(totalIncome), boldBodyFont, Element.ALIGN_RIGHT);
-            addBodyCell(kpiTable, formatIdr(totalExpense), boldBodyFont, Element.ALIGN_RIGHT);
-            addBodyCell(kpiTable, formatIdr(balance), boldBodyFont, Element.ALIGN_RIGHT);
-            addBodyCell(kpiTable, String.valueOf(transactions.size()), boldBodyFont, Element.ALIGN_RIGHT);
-            document.add(kpiTable);
-
-            // Budget Progress Table
-            Paragraph budgetHeader = new Paragraph("Progres Anggaran", sectionFont);
-            budgetHeader.setSpacingAfter(6f);
-            document.add(budgetHeader);
-
-            if (budgets.isEmpty()) {
-                Paragraph emptyBudgets = new Paragraph("Tidak ada anggaran terdaftar untuk periode ini.", bodyFont);
-                emptyBudgets.setSpacingAfter(14f);
-                document.add(emptyBudgets);
-            } else {
-                PdfPTable budgetTable = new PdfPTable(new float[]{2.5f, 1.8f, 1.8f, 1.3f, 1.4f});
-                budgetTable.setWidthPercentage(100);
-                budgetTable.setSpacingAfter(14f);
-                addHeaderCell(budgetTable, "Kategori", tableHeaderFont);
-                addHeaderCell(budgetTable, "Batas", tableHeaderFont);
-                addHeaderCell(budgetTable, "Terpakai", tableHeaderFont);
-                addHeaderCell(budgetTable, "Utilisasi", tableHeaderFont);
-                addHeaderCell(budgetTable, "Status", tableHeaderFont);
-
-                for (BudgetDto budget : budgets) {
-                    addBodyCell(budgetTable, budget.categoryName(), bodyFont, Element.ALIGN_LEFT);
-                    addBodyCell(budgetTable, formatIdr(budget.amountLimit()), bodyFont, Element.ALIGN_RIGHT);
-                    addBodyCell(budgetTable, formatIdr(budget.spentAmount()), bodyFont, Element.ALIGN_RIGHT);
-                    addBodyCell(budgetTable, budget.utilizationPercentage().toPlainString() + "%", bodyFont, Element.ALIGN_RIGHT);
-                    addBodyCell(budgetTable, budget.isOverBudget() ? "Over Budget" : "Aman", bodyFont, Element.ALIGN_CENTER);
-                }
-                document.add(budgetTable);
-            }
-
-            // Transactions Table
-            Paragraph txHeader = new Paragraph("Rincian Transaksi", sectionFont);
-            txHeader.setSpacingAfter(6f);
-            document.add(txHeader);
-
-            if (transactions.isEmpty()) {
-                document.add(new Paragraph("Tidak ada transaksi pada periode ini.", bodyFont));
-            } else {
-                PdfPTable txTable = new PdfPTable(new float[]{1.4f, 2.0f, 1.2f, 1.8f, 3.0f});
-                txTable.setWidthPercentage(100);
-                addHeaderCell(txTable, "Tanggal", tableHeaderFont);
-                addHeaderCell(txTable, "Kategori", tableHeaderFont);
-                addHeaderCell(txTable, "Tipe", tableHeaderFont);
-                addHeaderCell(txTable, "Nominal", tableHeaderFont);
-                addHeaderCell(txTable, "Deskripsi", tableHeaderFont);
-
-                for (Transaction tx : transactions) {
-                    addBodyCell(
-                            txTable,
-                            tx.getTransactionDate() != null ? tx.getTransactionDate().format(DATE_FORMATTER) : "-",
-                            bodyFont,
-                            Element.ALIGN_LEFT
-                    );
-                    addBodyCell(
-                            txTable,
-                            tx.getCategory() != null ? tx.getCategory().getName() : "-",
-                            bodyFont,
-                            Element.ALIGN_LEFT
-                    );
-                    addBodyCell(
-                            txTable,
-                            tx.getType() != null ? tx.getType().name() : "-",
-                            bodyFont,
-                            Element.ALIGN_CENTER
-                    );
-                    addBodyCell(
-                            txTable,
-                            formatIdr(tx.getAmount() != null ? tx.getAmount() : ZERO),
-                            bodyFont,
-                            Element.ALIGN_RIGHT
-                    );
-                    addBodyCell(
-                            txTable,
-                            tx.getDescription() != null ? tx.getDescription() : "-",
-                            bodyFont,
-                            Element.ALIGN_LEFT
-                    );
-                }
-                document.add(txTable);
-            }
+            addKpiSection(document, sectionFont, tableHeaderFont, boldBodyFont, idrFormat,
+                    totalIncome, totalExpense, balance, transactions.size());
+            addBudgetSection(document, sectionFont, tableHeaderFont, bodyFont, idrFormat, budgets);
+            addTransactionsSection(document, sectionFont, tableHeaderFont, bodyFont, idrFormat, transactions);
         } finally {
             if (document.isOpen()) {
                 document.close();
@@ -328,9 +240,137 @@ public class ReportGeneratorService {
         return outputStream.toByteArray();
     }
 
+    private void addKpiSection(
+            Document document,
+            Font sectionFont,
+            Font tableHeaderFont,
+            Font boldBodyFont,
+            NumberFormat idrFormat,
+            BigDecimal totalIncome,
+            BigDecimal totalExpense,
+            BigDecimal balance,
+            int transactionCount
+    ) {
+        Paragraph kpiHeader = new Paragraph("Ringkasan KPI", sectionFont);
+        kpiHeader.setSpacingAfter(6f);
+        document.add(kpiHeader);
+
+        PdfPTable kpiTable = new PdfPTable(4);
+        kpiTable.setWidthPercentage(100);
+        kpiTable.setSpacingAfter(14f);
+        addHeaderCell(kpiTable, "Total Pemasukan", tableHeaderFont);
+        addHeaderCell(kpiTable, "Total Pengeluaran", tableHeaderFont);
+        addHeaderCell(kpiTable, "Sisa Saldo", tableHeaderFont);
+        addHeaderCell(kpiTable, "Jumlah Transaksi", tableHeaderFont);
+
+        addBodyCell(kpiTable, formatIdr(idrFormat, totalIncome), boldBodyFont, Element.ALIGN_RIGHT);
+        addBodyCell(kpiTable, formatIdr(idrFormat, totalExpense), boldBodyFont, Element.ALIGN_RIGHT);
+        addBodyCell(kpiTable, formatIdr(idrFormat, balance), boldBodyFont, Element.ALIGN_RIGHT);
+        addBodyCell(kpiTable, String.valueOf(transactionCount), boldBodyFont, Element.ALIGN_RIGHT);
+        document.add(kpiTable);
+    }
+
+    private void addBudgetSection(
+            Document document,
+            Font sectionFont,
+            Font tableHeaderFont,
+            Font bodyFont,
+            NumberFormat idrFormat,
+            List<BudgetDto> budgets
+    ) {
+        Paragraph budgetHeader = new Paragraph("Progres Anggaran", sectionFont);
+        budgetHeader.setSpacingAfter(6f);
+        document.add(budgetHeader);
+
+        if (budgets.isEmpty()) {
+            Paragraph emptyBudgets = new Paragraph("Tidak ada anggaran terdaftar untuk periode ini.", bodyFont);
+            emptyBudgets.setSpacingAfter(14f);
+            document.add(emptyBudgets);
+            return;
+        }
+
+        PdfPTable budgetTable = new PdfPTable(new float[]{2.5f, 1.8f, 1.8f, 1.3f, 1.4f});
+        budgetTable.setWidthPercentage(100);
+        budgetTable.setSpacingAfter(14f);
+        addHeaderCell(budgetTable, "Kategori", tableHeaderFont);
+        addHeaderCell(budgetTable, "Batas", tableHeaderFont);
+        addHeaderCell(budgetTable, "Terpakai", tableHeaderFont);
+        addHeaderCell(budgetTable, "Utilisasi", tableHeaderFont);
+        addHeaderCell(budgetTable, "Status", tableHeaderFont);
+
+        for (BudgetDto budget : budgets) {
+            addBodyCell(budgetTable, budget.categoryName(), bodyFont, Element.ALIGN_LEFT);
+            addBodyCell(budgetTable, formatIdr(idrFormat, budget.amountLimit()), bodyFont, Element.ALIGN_RIGHT);
+            addBodyCell(budgetTable, formatIdr(idrFormat, budget.spentAmount()), bodyFont, Element.ALIGN_RIGHT);
+            addBodyCell(budgetTable, budget.utilizationPercentage().toPlainString() + "%", bodyFont, Element.ALIGN_RIGHT);
+            addBodyCell(budgetTable, budget.isOverBudget() ? "Over Budget" : "Aman", bodyFont, Element.ALIGN_CENTER);
+        }
+        document.add(budgetTable);
+    }
+
+    private void addTransactionsSection(
+            Document document,
+            Font sectionFont,
+            Font tableHeaderFont,
+            Font bodyFont,
+            NumberFormat idrFormat,
+            List<Transaction> transactions
+    ) {
+        Paragraph txHeader = new Paragraph("Rincian Transaksi", sectionFont);
+        txHeader.setSpacingAfter(6f);
+        document.add(txHeader);
+
+        if (transactions.isEmpty()) {
+            document.add(new Paragraph("Tidak ada transaksi pada periode ini.", bodyFont));
+            return;
+        }
+
+        PdfPTable txTable = new PdfPTable(new float[]{1.4f, 2.0f, 1.2f, 1.8f, 3.0f});
+        txTable.setWidthPercentage(100);
+        addHeaderCell(txTable, "Tanggal", tableHeaderFont);
+        addHeaderCell(txTable, "Kategori", tableHeaderFont);
+        addHeaderCell(txTable, "Tipe", tableHeaderFont);
+        addHeaderCell(txTable, "Nominal", tableHeaderFont);
+        addHeaderCell(txTable, "Deskripsi", tableHeaderFont);
+
+        for (Transaction tx : transactions) {
+            addBodyCell(
+                    txTable,
+                    tx.getTransactionDate() != null ? tx.getTransactionDate().format(DATE_FORMATTER) : "-",
+                    bodyFont,
+                    Element.ALIGN_LEFT
+            );
+            addBodyCell(
+                    txTable,
+                    tx.getCategory() != null ? tx.getCategory().getName() : "-",
+                    bodyFont,
+                    Element.ALIGN_LEFT
+            );
+            addBodyCell(
+                    txTable,
+                    tx.getType() != null ? tx.getType().name() : "-",
+                    bodyFont,
+                    Element.ALIGN_CENTER
+            );
+            addBodyCell(
+                    txTable,
+                    formatIdr(idrFormat, tx.getAmount() != null ? tx.getAmount() : ZERO),
+                    bodyFont,
+                    Element.ALIGN_RIGHT
+            );
+            addBodyCell(
+                    txTable,
+                    tx.getDescription() != null ? tx.getDescription() : "-",
+                    bodyFont,
+                    Element.ALIGN_LEFT
+            );
+        }
+        document.add(txTable);
+    }
+
     private void addHeaderCell(PdfPTable table, String text, Font font) {
         PdfPCell cell = new PdfPCell(new Phrase(text, font));
-        cell.setBackgroundColor(new Color(16, 185, 129));
+        cell.setBackgroundColor(COLOR_TABLE_HEADER_BG);
         cell.setPadding(6f);
         cell.setHorizontalAlignment(Element.ALIGN_LEFT);
         table.addCell(cell);
@@ -343,10 +383,14 @@ public class ReportGeneratorService {
         table.addCell(cell);
     }
 
-    private String formatIdr(BigDecimal amount) {
-        NumberFormat nf = NumberFormat.getNumberInstance(Locale.forLanguageTag("id-ID"));
+    private NumberFormat createIdrNumberFormat() {
+        NumberFormat nf = NumberFormat.getNumberInstance(ID_LOCALE);
         nf.setMinimumFractionDigits(2);
         nf.setMaximumFractionDigits(2);
-        return "Rp " + nf.format(amount != null ? amount : ZERO);
+        return nf;
+    }
+
+    private String formatIdr(NumberFormat idrFormat, BigDecimal amount) {
+        return "Rp " + idrFormat.format(amount != null ? amount : ZERO);
     }
 }

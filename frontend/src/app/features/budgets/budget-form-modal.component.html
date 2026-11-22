@@ -50,11 +50,11 @@
           <div class="flex items-center gap-2.5">
             <span
               class="h-3.5 w-3.5 shrink-0 rounded-full border border-fp-ink"
-              [style.background-color]="getEditCategoryColor()"
+              [style.background-color]="editCategoryColor()"
             ></span>
             <div>
               <p class="text-sm font-bold text-fp-ink">{{ editing.categoryName }}</p>
-              <p class="text-xs font-semibold text-slate-600">Periode {{ getEditPeriodLabel() }}</p>
+              <p class="text-xs font-semibold text-slate-600">Periode {{ editPeriodLabel() }}</p>
             </div>
           </div>
           <span class="rounded-lg border-2 border-fp-ink bg-[#FF4D6D] px-2.5 py-0.5 text-[11px] font-bold text-white shadow-brutal-sm">

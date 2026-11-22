@@ -1,5 +1,4 @@
 import { CommonModule } from '@angular/common';
-import { HttpErrorResponse } from '@angular/common/http';
 import {
   Component,
   computed,
@@ -14,10 +13,11 @@ import { finalize } from 'rxjs/operators';
 import { BudgetAlertDto } from '../../../core/models/alert.model';
 import { AlertService } from '../../../core/services/alert.service';
 import { ToastService } from '../../../core/services/toast.service';
-import { extractApiError } from '../../../core/utils/error.util';
+import { isUnauthorizedError } from '../../../core/utils/error.util';
 import {
   formatDateTimeId,
   formatIdr,
+  formatPercent,
   getMonthName,
   sanitizeHexColor,
 } from '../../utils/format.util';
@@ -55,6 +55,7 @@ export class AlertPanelComponent {
 
   readonly formatIdr = formatIdr;
   readonly formatDateTimeId = formatDateTimeId;
+  readonly formatPercent = formatPercent;
 
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {
@@ -90,12 +91,7 @@ export class AlertPanelComponent {
       .loadAlerts()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        error: (error: unknown) => {
-          const isUnauthorized = error instanceof HttpErrorResponse && error.status === 401;
-          if (!isUnauthorized) {
-            this.toastService.error('Gagal memuat data');
-          }
-        },
+        error: (error: unknown) => this.handleActionError(error, 'Gagal memuat data'),
       });
   }
 
@@ -111,12 +107,7 @@ export class AlertPanelComponent {
         takeUntilDestroyed(this.destroyRef)
       )
       .subscribe({
-        error: (error: unknown) => {
-          const isUnauthorized = error instanceof HttpErrorResponse && error.status === 401;
-          if (!isUnauthorized) {
-            this.toastService.error('Aksi gagal');
-          }
-        },
+        error: (error: unknown) => this.handleActionError(error, 'Aksi gagal'),
       });
   }
 
@@ -135,12 +126,7 @@ export class AlertPanelComponent {
         next: () => {
           this.toastService.success('Ditandai dibaca');
         },
-        error: (error: unknown) => {
-          const isUnauthorized = error instanceof HttpErrorResponse && error.status === 401;
-          if (!isUnauthorized) {
-            this.toastService.error('Aksi gagal');
-          }
-        },
+        error: (error: unknown) => this.handleActionError(error, 'Aksi gagal'),
       });
   }
 
@@ -156,12 +142,7 @@ export class AlertPanelComponent {
         takeUntilDestroyed(this.destroyRef)
       )
       .subscribe({
-        error: (error: unknown) => {
-          const isUnauthorized = error instanceof HttpErrorResponse && error.status === 401;
-          if (!isUnauthorized) {
-            this.toastService.error('Gagal menghapus');
-          }
-        },
+        error: (error: unknown) => this.handleActionError(error, 'Gagal menghapus'),
       });
   }
 
@@ -177,11 +158,10 @@ export class AlertPanelComponent {
     return `${getMonthName(alert.month)} ${alert.year}`;
   }
 
-  formatPercent(percentage: number): string {
-    if (!Number.isFinite(percentage)) {
-      return '0.0%';
+  private handleActionError(error: unknown, message: string): void {
+    if (!isUnauthorizedError(error)) {
+      this.toastService.error(message);
     }
-    return `${percentage.toFixed(1)}%`;
   }
 
   private setAlertBusy(id: string, busy: boolean): void {

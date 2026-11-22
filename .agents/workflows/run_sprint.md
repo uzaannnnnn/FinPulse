@@ -18,5 +18,8 @@ Saat pengguna mengetik `/run_sprint <nomor_sprint>` (contoh: `/run_sprint 1`), o
 3. **Tahap Audit & Testing (`@qa`)**
    - Setelah `@backend` dan `@frontend` selesai, jalankan **`@qa`** menggunakan `.agents/skills/qa_audit.md` untuk memverifikasi kesesuaian kontrak, keamanan, dan pengujian otomatis.
 
-4. **Tahap Build & Verifikasi Lokal (`@devops`)**
+4. **Tahap Code Review & Refactoring (`@reviewer`)**
+   - Setelah `@qa` selesai, jalankan **`@reviewer`** menggunakan `.agents/skills/code_review.md` untuk mengaudit efisiensi performa, kebersihan komentar, DRY, dan penghapusan *dead code* di `backend/` dan `frontend/` tanpa mengubah kontrak API, migrasi Flyway, atau logika bisnis, lalu simpan laporannya ke `docs/qa/code_review_report.md`.
+
+5. **Tahap Build & Verifikasi Lokal (`@devops`)**
    - Jalankan **`@devops`** menggunakan `.agents/skills/devops_run.md` untuk memverifikasi `mvn test`, `npm run build`, Docker Compose (Sprint 3), dan melaporkan status akhir Sprint `<nomor_sprint>` ke pengguna.

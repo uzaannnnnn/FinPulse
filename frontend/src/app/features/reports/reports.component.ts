@@ -23,7 +23,7 @@ import {
 } from '../../core/models/report.model';
 import { ReportService } from '../../core/services/report.service';
 import { ToastService } from '../../core/services/toast.service';
-import { extractApiError } from '../../core/utils/error.util';
+import { extractApiError, isUnauthorizedError } from '../../core/utils/error.util';
 import { springEnter, staggerList } from '../../shared/animations';
 import {
   AppSelectComponent,
@@ -62,6 +62,7 @@ export class ReportsComponent implements OnInit, OnDestroy {
   );
 
   readonly exports = signal<ReportExportDto[]>([]);
+  readonly skeletonRows = [1, 2, 3];
   readonly isLoading = signal<boolean>(true);
   readonly isSubmitting = signal<boolean>(false);
   readonly errorMessage = signal<string | null>(null);
@@ -137,8 +138,7 @@ export class ReportsComponent implements OnInit, OnDestroy {
         error: (error: unknown) => {
           const parsed = extractApiError(error, 'Gagal memuat riwayat ekspor laporan.');
           this.errorMessage.set(parsed.message);
-          const isUnauthorized = error instanceof HttpErrorResponse && error.status === 401;
-          if (!isUnauthorized) {
+          if (!isUnauthorizedError(error)) {
             this.toastService.error('Gagal memuat data');
           }
         },
@@ -181,14 +181,13 @@ export class ReportsComponent implements OnInit, OnDestroy {
         error: (error: unknown) => {
           const isServiceUnavailable =
             error instanceof HttpErrorResponse && error.status === 503;
-          const isUnauthorized = error instanceof HttpErrorResponse && error.status === 401;
 
           const message = isServiceUnavailable
             ? 'Layanan ekspor sedang sibuk, coba lagi sebentar lagi.'
             : extractApiError(error, 'Gagal mengajukan permintaan ekspor laporan.').message;
 
           this.submitError.set(message);
-          if (!isUnauthorized) {
+          if (!isUnauthorizedError(error)) {
             this.toastService.error(
               isServiceUnavailable ? 'Antrean tidak tersedia' : 'Ekspor gagal'
             );

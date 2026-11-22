@@ -176,7 +176,7 @@
 
     @if (isLoading() && exports().length === 0) {
       <div class="space-y-3 p-4 sm:p-6">
-        @for (row of [1, 2, 3]; track row) {
+        @for (row of skeletonRows; track row) {
           <div class="h-14 animate-pulse rounded-xl border-2 border-fp-ink/20 bg-fp-canvas/80"></div>
         }
       </div>

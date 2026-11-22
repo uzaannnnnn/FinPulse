@@ -1,5 +1,3 @@
-import { CommonModule } from '@angular/common';
-import { HttpErrorResponse } from '@angular/common/http';
 import {
   Component,
   computed,
@@ -13,20 +11,14 @@ import {
   untracked,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import {
-  AbstractControl,
-  FormBuilder,
-  ReactiveFormsModule,
-  ValidationErrors,
-  ValidatorFn,
-  Validators,
-} from '@angular/forms';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize } from 'rxjs/operators';
 import { BudgetDto } from '../../core/models/budget.model';
 import { CategoryDto } from '../../core/models/category.model';
 import { BudgetService } from '../../core/services/budget.service';
 import { ToastService } from '../../core/services/toast.service';
-import { extractApiError } from '../../core/utils/error.util';
+import { extractApiError, isUnauthorizedError } from '../../core/utils/error.util';
+import { positiveDecimalValidator } from '../../core/utils/form-validators.util';
 import { modalPopIn } from '../../shared/animations';
 import {
   AppSelectComponent,
@@ -40,41 +32,10 @@ import {
   sanitizeHexColor,
 } from '../../shared/utils/format.util';
 
-const MAX_LIMIT = 9_999_999_999_999.99;
-
-function hasMoreThanTwoDecimals(raw: unknown, num: number): boolean {
-  const str = String(raw).trim();
-  if (/^[+-]?\d+(\.\d+)?$/.test(str)) {
-    const dotIndex = str.indexOf('.');
-    return dotIndex >= 0 && str.length - dotIndex - 1 > 2;
-  }
-  return Math.abs(num * 100 - Math.round(num * 100)) > 1e-8;
-}
-
-function positiveLimitValidator(): ValidatorFn {
-  return (control: AbstractControl): ValidationErrors | null => {
-    const raw = control.value;
-    if (raw === null || raw === undefined || raw === '') {
-      return null;
-    }
-    const num = Number(raw);
-    if (!Number.isFinite(num) || num <= 0) {
-      return { positiveLimit: true };
-    }
-    if (num > MAX_LIMIT) {
-      return { maxLimit: true };
-    }
-    if (hasMoreThanTwoDecimals(raw, num)) {
-      return { maxDecimals: true };
-    }
-    return null;
-  };
-}
-
 @Component({
   selector: 'app-budget-form-modal',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, SpinnerComponent, AppSelectComponent],
+  imports: [ReactiveFormsModule, SpinnerComponent, AppSelectComponent],
   templateUrl: './budget-form-modal.component.html',
   animations: [modalPopIn],
 })
@@ -145,11 +106,23 @@ export class BudgetFormModalComponent {
     })
   );
 
+  readonly editPeriodLabel = computed(() => {
+    const b = this.budget();
+    return b ? `${getMonthName(b.month)} ${b.year}` : '';
+  });
+
+  readonly editCategoryColor = computed(() =>
+    sanitizeHexColor(this.budget()?.categoryColor, '#0F172A')
+  );
+
   readonly form = this.fb.nonNullable.group({
     categoryId: ['', [Validators.required]],
     month: [new Date().getMonth() + 1, [Validators.required, Validators.min(1), Validators.max(12)]],
     year: [new Date().getFullYear(), [Validators.required, Validators.min(2020), Validators.max(2100)]],
-    amountLimit: [null as number | null, [Validators.required, positiveLimitValidator()]],
+    amountLimit: [
+      null as number | null,
+      [Validators.required, positiveDecimalValidator('positiveLimit', 'maxLimit')],
+    ],
   });
 
   constructor() {
@@ -213,18 +186,6 @@ export class BudgetFormModalComponent {
 
   isCategoryUsed(categoryId: string): boolean {
     return this.existingCategorySet().has(categoryId);
-  }
-
-  getEditPeriodLabel(): string {
-    const b = this.budget();
-    if (!b) {
-      return '';
-    }
-    return `${getMonthName(b.month)} ${b.year}`;
-  }
-
-  getEditCategoryColor(): string {
-    return sanitizeHexColor(this.budget()?.categoryColor, '#0F172A');
   }
 
   requestClose(): void {
@@ -308,8 +269,7 @@ export class BudgetFormModalComponent {
     const parsed = extractApiError(error, fallback);
     this.submitError.set(parsed.message);
     this.fieldValidationErrors.set(parsed.validationErrors);
-    const isUnauthorized = error instanceof HttpErrorResponse && error.status === 401;
-    if (!isUnauthorized) {
+    if (!isUnauthorizedError(error)) {
       this.toastService.error('Gagal menyimpan');
     }
   }

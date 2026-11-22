@@ -39,7 +39,9 @@ public class AlertService {
         List<BudgetAlert> alerts = unreadOnly
                 ? budgetAlertRepository.findRecentUnreadByUserId(userId, pageRequest)
                 : budgetAlertRepository.findRecentByUserId(userId, pageRequest);
-        long unreadCount = budgetAlertRepository.countByUserIdAndIsReadFalse(userId);
+        long unreadCount = (unreadOnly && alerts.size() < limit)
+                ? alerts.size()
+                : budgetAlertRepository.countByUserIdAndIsReadFalse(userId);
 
         List<BudgetAlertDto> dtos = alerts.stream()
                 .map(BudgetAlertDto::from)

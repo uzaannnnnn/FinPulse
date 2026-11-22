@@ -1,5 +1,4 @@
 import { CommonModule } from '@angular/common';
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, DestroyRef, HostListener, inject, OnInit, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { EMPTY, of, Subject } from 'rxjs';
@@ -16,7 +15,7 @@ import { AlertService } from '../../core/services/alert.service';
 import { CategoryService } from '../../core/services/category.service';
 import { ToastService } from '../../core/services/toast.service';
 import { TransactionService } from '../../core/services/transaction.service';
-import { extractApiError } from '../../core/utils/error.util';
+import { extractApiError, isUnauthorizedError } from '../../core/utils/error.util';
 import { modalPopIn, springEnter, staggerList } from '../../shared/animations';
 import {
   AppSelectComponent,
@@ -186,8 +185,7 @@ export class TransactionsComponent implements OnInit {
             catchError((error: unknown) => {
               const parsed = extractApiError(error, 'Gagal memuat daftar transaksi.');
               this.errorMessage.set(parsed.message);
-              const isUnauthorized = error instanceof HttpErrorResponse && error.status === 401;
-              if (!isUnauthorized) {
+              if (!isUnauthorizedError(error)) {
                 this.toastService.error('Gagal memuat data');
               }
               return of<TransactionPageResponse | null>(null);
@@ -395,8 +393,7 @@ export class TransactionsComponent implements OnInit {
           this.loadTransactions();
         },
         error: (error: unknown) => {
-          const isUnauthorized = error instanceof HttpErrorResponse && error.status === 401;
-          if (!isUnauthorized) {
+          if (!isUnauthorizedError(error)) {
             this.toastService.error('Gagal menghapus');
           }
         },

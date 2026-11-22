@@ -127,7 +127,10 @@ export class AppLayoutComponent implements OnInit {
     this.isLoggingOut.set(true);
     this.authService
       .logout()
-      .pipe(finalize(() => this.isLoggingOut.set(false)))
+      .pipe(
+        finalize(() => this.isLoggingOut.set(false)),
+        takeUntilDestroyed(this.destroyRef)
+      )
       .subscribe(() => {
         this.alertService.reset();
         this.syncStatusService.reset();

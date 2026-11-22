@@ -77,12 +77,11 @@ public class DashboardSummaryCacheService {
         LocalDate periodStart = period.atDay(1);
         LocalDate periodEnd = period.atEndOfMonth();
 
-        Map<TransactionType, BigDecimal> periodTotals = toTypeTotalMap(
-                transactionRepository.sumByTypeForUserInRange(userId, periodStart, periodEnd)
-        );
-        BigDecimal totalIncome = periodTotals.getOrDefault(TransactionType.INCOME, ZERO);
-        BigDecimal totalExpense = periodTotals.getOrDefault(TransactionType.EXPENSE, ZERO);
-        BigDecimal balance = totalIncome.subtract(totalExpense).setScale(2, RoundingMode.HALF_UP);
+        List<MonthlyCashflowDto> cashflowSeries = buildCashflowSeries(userId, period, monthsBack);
+        MonthlyCashflowDto currentPeriodCashflow = cashflowSeries.getLast();
+        BigDecimal totalIncome = currentPeriodCashflow.totalIncome();
+        BigDecimal totalExpense = currentPeriodCashflow.totalExpense();
+        BigDecimal balance = currentPeriodCashflow.net();
 
         Map<TransactionType, BigDecimal> cumulativeTotals = toTypeTotalMap(
                 transactionRepository.sumByTypeForUser(userId)
@@ -93,16 +92,14 @@ public class DashboardSummaryCacheService {
 
         long transactionCount = transactionRepository.countByUserIdAndDateRange(userId, periodStart, periodEnd);
 
-        List<MonthlyCashflowDto> cashflowSeries = buildCashflowSeries(userId, period, monthsBack);
-
         List<TransactionRepository.CategoryExpenseProjection> expenseProjections = transactionRepository
                 .sumByCategoryForUserAndTypeInRange(userId, TransactionType.EXPENSE, periodStart, periodEnd);
 
         List<CategoryBreakdownDto> expenseByCategory = buildCategoryBreakdown(expenseProjections, totalExpense);
 
-        Map<UUID, BigDecimal> spentByCategory = new HashMap<>();
-        for (TransactionRepository.CategoryExpenseProjection projection : expenseProjections) {
-            spentByCategory.put(projection.getCategoryId(), scaleMoney(projection.getTotal()));
+        Map<UUID, BigDecimal> spentByCategory = HashMap.newHashMap(expenseByCategory.size());
+        for (CategoryBreakdownDto item : expenseByCategory) {
+            spentByCategory.put(item.categoryId(), item.amount());
         }
 
         List<Budget> budgets = budgetRepository.findAllByUserIdAndMonthAndYear(

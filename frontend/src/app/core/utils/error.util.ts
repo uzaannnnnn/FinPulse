@@ -7,6 +7,10 @@ export interface ParsedApiError {
   status: number | null;
 }
 
+export function isUnauthorizedError(error: unknown): boolean {
+  return error instanceof HttpErrorResponse && error.status === 401;
+}
+
 /**
  * Extracts a user-friendly message and optional field validation map
  * from an Angular HttpErrorResponse matching the FinPulse ErrorResponse contract.

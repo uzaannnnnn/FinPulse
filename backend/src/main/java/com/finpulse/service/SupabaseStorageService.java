@@ -90,38 +90,15 @@ public class SupabaseStorageService implements StorageService {
             );
         }
 
-        String baseUrl = validateBaseUrl(supabaseProperties.getNormalizedUrl());
-        String bucket = validateBucketName(normalizeBucketName(supabaseProperties.getStorageBucket()));
-        String serviceKey = supabaseProperties.getServiceKey().trim();
         String objectPath = userId + "/" + UUID.randomUUID() + "." + detectedType.extension;
-        String uploadUrl = baseUrl + "/storage/v1/object/" + bucket + "/" + objectPath;
-        String publicUrl = baseUrl + "/storage/v1/object/public/" + bucket + "/" + objectPath;
-
-        try {
-            restClient.post()
-                    .uri(uploadUrl)
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + serviceKey)
-                    .header("apikey", serviceKey)
-                    .header("x-upsert", "true")
-                    .contentType(MediaType.parseMediaType(detectedType.contentType))
-                    .body(bytes)
-                    .retrieve()
-                    .toBodilessEntity();
-        } catch (RestClientResponseException ex) {
-            log.error(
-                    "Supabase Storage rejected receipt upload for userId={} with upstream status={}",
-                    userId,
-                    ex.getStatusCode().value()
-            );
-            throw new StorageUnavailableException(
-                    "Layanan Supabase Storage sedang tidak tersedia; silakan coba beberapa saat lagi"
-            );
-        } catch (RestClientException ex) {
-            log.error("Failed uploading receipt to Supabase Storage for userId={}", userId, ex);
-            throw new StorageUnavailableException(
-                    "Layanan Supabase Storage sedang tidak tersedia; silakan coba beberapa saat lagi"
-            );
-        }
+        String publicUrl = uploadObjectToSupabase(
+                userId,
+                supabaseProperties.getStorageBucket(),
+                objectPath,
+                detectedType.contentType,
+                bytes,
+                "receipt"
+        );
 
         return new ReceiptUploadResponse(publicUrl, objectPath, detectedType.contentType, bytes.length);
     }
@@ -140,15 +117,35 @@ public class SupabaseStorageService implements StorageService {
             );
         }
 
-        String baseUrl = validateBaseUrl(supabaseProperties.getNormalizedUrl());
-        String bucket = validateBucketName(normalizeBucketName(supabaseProperties.getReportsBucket()));
-        String serviceKey = supabaseProperties.getServiceKey().trim();
         String sanitizedFileName = sanitizeReportFileName(fileName);
         String resolvedContentType = (contentType == null || contentType.isBlank())
                 ? MediaType.APPLICATION_OCTET_STREAM_VALUE
                 : contentType.trim();
 
         String objectPath = userId + "/reports/" + UUID.randomUUID() + "-" + sanitizedFileName;
+        String publicUrl = uploadObjectToSupabase(
+                userId,
+                supabaseProperties.getReportsBucket(),
+                objectPath,
+                resolvedContentType,
+                bytes,
+                "report"
+        );
+
+        return new ReportUploadResult(publicUrl, objectPath, resolvedContentType, bytes.length);
+    }
+
+    private String uploadObjectToSupabase(
+            UUID userId,
+            String rawBucket,
+            String objectPath,
+            String contentType,
+            byte[] bytes,
+            String assetLabel
+    ) {
+        String baseUrl = validateBaseUrl(supabaseProperties.getNormalizedUrl());
+        String bucket = validateBucketName(normalizeBucketName(rawBucket));
+        String serviceKey = supabaseProperties.getServiceKey().trim();
         String uploadUrl = baseUrl + "/storage/v1/object/" + bucket + "/" + objectPath;
         String publicUrl = baseUrl + "/storage/v1/object/public/" + bucket + "/" + objectPath;
 
@@ -158,13 +155,14 @@ public class SupabaseStorageService implements StorageService {
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + serviceKey)
                     .header("apikey", serviceKey)
                     .header("x-upsert", "true")
-                    .contentType(MediaType.parseMediaType(resolvedContentType))
+                    .contentType(MediaType.parseMediaType(contentType))
                     .body(bytes)
                     .retrieve()
                     .toBodilessEntity();
         } catch (RestClientResponseException ex) {
             log.error(
-                    "Supabase Storage rejected report upload for userId={} with upstream status={}",
+                    "Supabase Storage rejected {} upload for userId={} with upstream status={}",
+                    assetLabel,
                     userId,
                     ex.getStatusCode().value()
             );
@@ -172,13 +170,13 @@ public class SupabaseStorageService implements StorageService {
                     "Layanan Supabase Storage sedang tidak tersedia; silakan coba beberapa saat lagi"
             );
         } catch (RestClientException ex) {
-            log.error("Failed uploading report to Supabase Storage for userId={}", userId, ex);
+            log.error("Failed uploading {} to Supabase Storage for userId={}", assetLabel, userId, ex);
             throw new StorageUnavailableException(
                     "Layanan Supabase Storage sedang tidak tersedia; silakan coba beberapa saat lagi"
             );
         }
 
-        return new ReportUploadResult(publicUrl, objectPath, resolvedContentType, bytes.length);
+        return publicUrl;
     }
 
     private String sanitizeReportFileName(String fileName) {

@@ -1,5 +1,4 @@
 import { CommonModule } from '@angular/common';
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, DestroyRef, HostListener, inject, OnInit, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { EMPTY, of, Subject } from 'rxjs';
@@ -10,7 +9,7 @@ import { AlertService } from '../../core/services/alert.service';
 import { BudgetService } from '../../core/services/budget.service';
 import { CategoryService } from '../../core/services/category.service';
 import { ToastService } from '../../core/services/toast.service';
-import { extractApiError } from '../../core/utils/error.util';
+import { extractApiError, isUnauthorizedError } from '../../core/utils/error.util';
 import { modalPopIn, springEnter, staggerList } from '../../shared/animations';
 import {
   AppSelectComponent,
@@ -19,7 +18,9 @@ import {
 import { SpinnerComponent } from '../../shared/components/spinner/spinner.component';
 import { CountUpDirective } from '../../shared/directives/count-up.directive';
 import {
+  clampPercentage,
   formatIdr,
+  formatPercent,
   getMonthName,
   getYearOptions,
   MONTH_OPTIONS,
@@ -98,6 +99,19 @@ export class BudgetsComponent implements OnInit {
     return (this.totalSpent() / limit) * 100;
   });
 
+  readonly overallUtilizationLabel = computed(() => formatPercent(this.overallUtilization()));
+  readonly overallClampedUtilization = computed(() => clampPercentage(this.overallUtilization()));
+  readonly overallProgressBarClass = computed(() => {
+    const util = this.overallUtilization();
+    if (util >= 100) {
+      return 'bg-rose-500';
+    }
+    if (util >= 80) {
+      return 'bg-amber-500';
+    }
+    return 'bg-emerald-500';
+  });
+
   readonly formatIdr = formatIdr;
 
   constructor() {
@@ -112,8 +126,7 @@ export class BudgetsComponent implements OnInit {
             catchError((error: unknown) => {
               const parsed = extractApiError(error, 'Gagal memuat daftar anggaran bulanan.');
               this.errorMessage.set(parsed.message);
-              const isUnauthorized = error instanceof HttpErrorResponse && error.status === 401;
-              if (!isUnauthorized) {
+              if (!isUnauthorizedError(error)) {
                 this.toastService.error('Gagal memuat data');
               }
               return of<BudgetDto[] | null>(null);
@@ -242,8 +255,7 @@ export class BudgetsComponent implements OnInit {
           this.loadBudgets();
         },
         error: (error: unknown) => {
-          const isUnauthorized = error instanceof HttpErrorResponse && error.status === 401;
-          if (!isUnauthorized) {
+          if (!isUnauthorizedError(error)) {
             this.toastService.error('Gagal menghapus');
           }
         },
@@ -259,17 +271,11 @@ export class BudgetsComponent implements OnInit {
   }
 
   getClampedPercentage(percentage: number): number {
-    if (!Number.isFinite(percentage)) {
-      return 0;
-    }
-    return Math.min(100, Math.max(0, percentage));
+    return clampPercentage(percentage);
   }
 
   formatPercent(percentage: number): string {
-    if (!Number.isFinite(percentage)) {
-      return '0.0%';
-    }
-    return `${percentage.toFixed(1)}%`;
+    return formatPercent(percentage);
   }
 
   getStatusLabel(budget: BudgetDto): 'Aman' | 'Mendekati Batas' | 'Melebihi Batas' {

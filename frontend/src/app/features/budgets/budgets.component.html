@@ -74,7 +74,7 @@
       <div class="flex items-center justify-between gap-2">
         <p class="text-xs font-bold uppercase tracking-wide text-slate-600">Total Terpakai</p>
         <span class="fp-num rounded-lg border-2 border-fp-ink bg-[#FACC15] px-2 py-0.5 text-[11px] font-bold text-fp-ink shadow-brutal-sm">
-          {{ formatPercent(overallUtilization()) }}
+          {{ overallUtilizationLabel() }}
         </span>
       </div>
       <p
@@ -87,14 +87,8 @@
       <div class="mt-2.5 h-3.5 w-full overflow-hidden rounded-full border-2 border-fp-ink bg-fp-canvas sm:mt-3">
         <div
           class="fp-striped-bar h-full rounded-full transition-all duration-300"
-          [ngClass]="
-            overallUtilization() >= 100
-              ? 'bg-rose-500'
-              : overallUtilization() >= 80
-                ? 'bg-amber-500'
-                : 'bg-emerald-500'
-          "
-          [style.width.%]="getClampedPercentage(overallUtilization())"
+          [ngClass]="overallProgressBarClass()"
+          [style.width.%]="overallClampedUtilization()"
         ></div>
       </div>
     </article>

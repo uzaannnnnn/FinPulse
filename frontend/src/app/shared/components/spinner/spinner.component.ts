@@ -1,10 +1,8 @@
-import { CommonModule } from '@angular/common';
 import { Component, computed, input } from '@angular/core';
 
 @Component({
   selector: 'app-spinner',
   standalone: true,
-  imports: [CommonModule],
   template: `
     <span class="inline-flex items-center gap-2" role="status" [attr.aria-label]="label() || 'Memuat'">
       <svg
