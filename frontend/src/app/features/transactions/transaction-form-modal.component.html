@@ -1,0 +1,297 @@
+<div
+  class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/60 p-4 backdrop-blur-sm"
+  role="dialog"
+  aria-modal="true"
+  [attr.aria-label]="isEditMode() ? 'Edit Transaksi' : 'Tambah Transaksi Baru'"
+  (click)="requestClose()"
+>
+  <div
+    @modalPopIn
+    class="relative my-6 w-full max-w-lg overflow-visible rounded-2xl border-2 border-fp-ink bg-fp-paper shadow-brutal-lg"
+    (click)="$event.stopPropagation()"
+  >
+    <!-- Header -->
+    <div class="flex items-center justify-between rounded-t-2xl border-b-2 border-fp-ink bg-[#FACC15] px-5 py-3.5 sm:px-6 sm:py-4">
+      <div>
+        <h2 class="text-base font-bold text-fp-ink sm:text-lg">
+          {{ isEditMode() ? 'Edit Transaksi' : 'Tambah Transaksi Baru' }}
+        </h2>
+        <p class="mt-0.5 hidden text-xs font-semibold text-fp-ink/80 sm:block">
+          {{
+            isEditMode()
+              ? 'Perbarui detail transaksi atau lampiran foto struk Anda.'
+              : 'Catat pemasukan atau pengeluaran baru beserta bukti struk jika ada.'
+          }}
+        </p>
+      </div>
+      <button
+        type="button"
+        (click)="requestClose()"
+        [disabled]="isSubmitting()"
+        class="fp-btn-sm rounded-lg bg-white p-1.5 text-fp-ink hover:bg-fp-canvas disabled:opacity-50"
+        aria-label="Tutup modal"
+      >
+        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Form Body -->
+    <form [formGroup]="form" (ngSubmit)="onSubmit()" class="max-h-[82vh] space-y-4 overflow-y-auto px-5 py-4 sm:space-y-5 sm:px-6 sm:py-5" novalidate>
+      @if (submitError()) {
+        <div class="rounded-xl border-2 border-fp-ink bg-[#FF4D6D] px-4 py-2.5 text-xs font-bold text-white shadow-brutal-sm sm:text-sm" role="alert">
+          <p>{{ submitError() }}</p>
+        </div>
+      }
+
+      <!-- Type Toggle -->
+      <div>
+        <span class="block text-xs font-bold uppercase tracking-wide text-fp-ink">
+          Tipe Transaksi
+        </span>
+        <div class="mt-2 grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            (click)="selectType('EXPENSE')"
+            [disabled]="isSubmitting()"
+            class="fp-btn-sm flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs font-bold sm:py-2.5 sm:text-sm"
+            [ngClass]="
+              selectedType() === 'EXPENSE'
+                ? 'bg-[#FF4D6D] text-white'
+                : 'bg-white text-fp-ink hover:bg-fp-canvas'
+            "
+          >
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.3">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
+            </svg>
+            <span>Pengeluaran</span>
+          </button>
+
+          <button
+            type="button"
+            (click)="selectType('INCOME')"
+            [disabled]="isSubmitting()"
+            class="fp-btn-sm flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs font-bold sm:py-2.5 sm:text-sm"
+            [ngClass]="
+              selectedType() === 'INCOME'
+                ? 'bg-[#00D68F] text-fp-ink'
+                : 'bg-white text-fp-ink hover:bg-fp-canvas'
+            "
+          >
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.3">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+            </svg>
+            <span>Pemasukan</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Category & Date Row -->
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <label for="tx-category" class="mb-1.5 block text-sm font-bold text-fp-ink">
+            Kategori <span class="text-[#FF4D6D]">*</span>
+          </label>
+          <app-select
+            selectId="tx-category"
+            ariaLabel="Pilih Kategori Transaksi"
+            [placeholder]="'Pilih kategori ' + (selectedType() === 'INCOME' ? 'pemasukan' : 'pengeluaran')"
+            formControlName="categoryId"
+            [options]="categorySelectOptions()"
+            [invalid]="form.controls.categoryId.invalid && form.controls.categoryId.touched"
+          />
+          @if (form.controls.categoryId.invalid && form.controls.categoryId.touched) {
+            <p class="mt-1 text-xs font-bold text-rose-600">Kategori wajib dipilih.</p>
+          } @else if (fieldValidationErrors()?.['categoryId']) {
+            <p class="mt-1 text-xs font-bold text-rose-600">{{ fieldValidationErrors()?.['categoryId'] }}</p>
+          }
+        </div>
+
+        <div>
+          <label for="tx-date" class="mb-1.5 block text-sm font-bold text-fp-ink">
+            Tanggal Transaksi <span class="text-[#FF4D6D]">*</span>
+          </label>
+          <input
+            id="tx-date"
+            type="date"
+            formControlName="transactionDate"
+            class="fp-input fp-num block w-full px-3.5 py-2.5 text-sm font-bold text-fp-ink"
+            [class.!border-[#FF4D6D]]="form.controls.transactionDate.invalid && form.controls.transactionDate.touched"
+          />
+          @if (form.controls.transactionDate.invalid && form.controls.transactionDate.touched) {
+            <p class="mt-1 text-xs font-bold text-rose-600">Tanggal transaksi wajib diisi.</p>
+          } @else if (fieldValidationErrors()?.['transactionDate']) {
+            <p class="mt-1 text-xs font-bold text-rose-600">{{ fieldValidationErrors()?.['transactionDate'] }}</p>
+          }
+        </div>
+      </div>
+
+      <!-- Amount -->
+      <div>
+        <label for="tx-amount" class="block text-sm font-bold text-fp-ink">
+          Nominal (Rp) <span class="text-[#FF4D6D]">*</span>
+        </label>
+        <div class="relative mt-1.5">
+          <span class="fp-num pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-sm font-bold text-fp-ink">
+            Rp
+          </span>
+          <input
+            id="tx-amount"
+            type="number"
+            min="0.01"
+            step="any"
+            placeholder="0"
+            formControlName="amount"
+            class="fp-input fp-num block w-full py-2.5 pl-11 pr-4 text-sm font-bold text-fp-ink"
+            [class.!border-[#FF4D6D]]="form.controls.amount.invalid && form.controls.amount.touched"
+          />
+        </div>
+        @if (form.controls.amount.touched && form.controls.amount.hasError('required')) {
+          <p class="mt-1 text-xs font-bold text-rose-600">Nominal transaksi wajib diisi.</p>
+        } @else if (form.controls.amount.touched && form.controls.amount.hasError('positiveAmount')) {
+          <p class="mt-1 text-xs font-bold text-rose-600">Nominal harus lebih besar dari 0.</p>
+        } @else if (form.controls.amount.touched && form.controls.amount.hasError('maxAmount')) {
+          <p class="mt-1 text-xs font-bold text-rose-600">Nominal melebihi batas maksimum yang diizinkan.</p>
+        } @else if (form.controls.amount.touched && form.controls.amount.hasError('maxDecimals')) {
+          <p class="mt-1 text-xs font-bold text-rose-600">Nominal maksimal 2 angka di belakang koma.</p>
+        } @else if (fieldValidationErrors()?.['amount']) {
+          <p class="mt-1 text-xs font-bold text-rose-600">{{ fieldValidationErrors()?.['amount'] }}</p>
+        }
+      </div>
+
+      <!-- Description -->
+      <div>
+        <div class="flex items-center justify-between">
+          <label for="tx-description" class="block text-sm font-bold text-fp-ink">
+            Deskripsi <span class="font-semibold text-slate-500">(opsional)</span>
+          </label>
+          <span class="fp-num text-xs font-bold text-slate-500">{{ getDescriptionLength() }}/500</span>
+        </div>
+        <textarea
+          id="tx-description"
+          rows="2"
+          maxlength="500"
+          placeholder="Contoh: Makan siang tim, tagihan listrik..."
+          formControlName="description"
+          class="fp-input mt-1.5 block w-full resize-none px-3.5 py-2.5 text-sm font-medium text-fp-ink"
+        ></textarea>
+        @if (form.controls.description.touched && form.controls.description.hasError('maxlength')) {
+          <p class="mt-1 text-xs font-bold text-rose-600">Deskripsi maksimal 500 karakter.</p>
+        } @else if (fieldValidationErrors()?.['description']) {
+          <p class="mt-1 text-xs font-bold text-rose-600">{{ fieldValidationErrors()?.['description'] }}</p>
+        }
+      </div>
+
+      <!-- Receipt Upload Area -->
+      <div>
+        <span class="block text-sm font-bold text-fp-ink">
+          Foto Struk <span class="font-semibold text-slate-500">(maks 5 MB)</span>
+        </span>
+
+        @if (activeReceiptPreview(); as previewUrl) {
+          <div class="mt-2 flex items-center gap-3.5 rounded-xl border-2 border-fp-ink bg-fp-canvas p-3 shadow-brutal-sm">
+            <img
+              [src]="previewUrl"
+              alt="Preview foto struk"
+              class="h-14 w-14 shrink-0 rounded-lg border-2 border-fp-ink object-cover sm:h-16 sm:w-16"
+            />
+            <div class="min-w-0 flex-1">
+              @if (selectedFile(); as file) {
+                <p class="truncate text-sm font-bold text-fp-ink">{{ file.name }}</p>
+                <p class="fp-num mt-0.5 text-xs font-semibold text-slate-600">
+                  {{ formatFileSize(file.size) }}
+                </p>
+              } @else {
+                <p class="text-sm font-bold text-fp-ink">Struk terlampir</p>
+              }
+
+              <div class="mt-2 flex flex-wrap items-center gap-2">
+                <label
+                  class="fp-btn-sm cursor-pointer rounded-lg bg-white px-2.5 py-1 text-xs font-bold text-fp-ink hover:bg-[#FACC15]"
+                >
+                  Ganti
+                  <input
+                    #fileInput
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    (change)="onFileSelected($event)"
+                    [disabled]="isSubmitting()"
+                    class="hidden"
+                  />
+                </label>
+
+                <button
+                  type="button"
+                  (click)="removeReceipt()"
+                  [disabled]="isSubmitting()"
+                  class="fp-btn-sm rounded-lg bg-[#FF4D6D] px-2.5 py-1 text-xs font-bold text-white hover:bg-rose-600 disabled:opacity-50"
+                >
+                  Hapus Struk
+                </button>
+              </div>
+            </div>
+          </div>
+        } @else {
+          <label
+            (dragover)="onDragOver($event)"
+            (dragleave)="onDragLeave($event)"
+            (drop)="onDrop($event)"
+            class="mt-2 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-4 text-center transition-colors"
+            [ngClass]="
+              isDragOver()
+                ? 'border-fp-ink bg-[#00D68F]/25'
+                : 'border-fp-ink/50 bg-fp-canvas/80 hover:border-fp-ink hover:bg-fp-canvas'
+            "
+          >
+            <svg class="h-6 w-6 text-fp-ink" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+              />
+            </svg>
+            <p class="mt-1.5 text-xs font-bold text-fp-ink">
+              Pilih foto struk (JPEG/PNG/WebP)
+            </p>
+            <input
+              #fileInput
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              (change)="onFileSelected($event)"
+              [disabled]="isSubmitting()"
+              class="hidden"
+            />
+          </label>
+        }
+
+        @if (receiptError()) {
+          <p class="mt-1.5 text-xs font-bold text-rose-600" role="alert">{{ receiptError() }}</p>
+        }
+      </div>
+
+      <!-- Footer Actions -->
+      <div class="flex items-center justify-end gap-3 border-t-2 border-fp-ink/10 pt-4">
+        <button
+          type="button"
+          (click)="requestClose()"
+          [disabled]="isSubmitting()"
+          class="fp-btn rounded-xl bg-white px-4 py-2 text-sm font-bold text-fp-ink hover:bg-fp-canvas disabled:opacity-50"
+        >
+          Batal
+        </button>
+
+        <button
+          type="submit"
+          [disabled]="isSubmitting()"
+          class="fp-btn inline-flex items-center justify-center gap-2 rounded-xl bg-[#00D68F] px-5 py-2 text-sm font-bold text-fp-ink hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          @if (isUploadingReceipt() || isSubmitting()) {
+            <app-spinner size="sm" colorClass="text-fp-ink" />
+          }
+          <span>Simpan</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

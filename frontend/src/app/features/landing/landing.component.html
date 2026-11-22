@@ -1,0 +1,356 @@
+<div class="min-h-screen fp-dot-grid text-fp-ink flex flex-col">
+  <!-- Header -->
+  <header class="sticky top-0 z-30 bg-fp-paper/95 backdrop-blur border-b-2 border-fp-ink">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
+      <a routerLink="/" class="inline-flex items-center gap-3 group focus:outline-none">
+        <span
+          class="w-11 h-11 rounded-xl bg-fp-ink border-2 border-fp-ink shadow-brutal-sm flex items-center justify-center group-hover:-translate-y-0.5 transition-transform"
+          aria-hidden="true"
+        >
+          <svg class="w-7 h-7" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+            <path
+              d="M10 32H19L25 16L34 46L41 26L46 32H54"
+              stroke="#00D68F"
+              stroke-width="5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <circle cx="54" cy="32" r="4" fill="#FACC15" />
+          </svg>
+        </span>
+        <span class="flex flex-col leading-none">
+          <span class="text-xl font-bold tracking-tight text-fp-ink">FinPulse</span>
+          <span class="text-[11px] font-bold uppercase tracking-wider text-slate-600">Keuangan Pribadi</span>
+        </span>
+      </a>
+
+      <nav aria-label="Navigasi utama" class="hidden md:flex items-center gap-6 text-sm font-bold text-fp-ink">
+        <a href="#fitur" class="hover:text-emerald-700 transition-colors">Fitur Utama</a>
+        <a href="#cara-kerja" class="hover:text-emerald-700 transition-colors">Cara Kerja</a>
+      </nav>
+
+      <div class="flex items-center gap-2.5 sm:gap-3">
+        <a
+          routerLink="/login"
+          class="fp-btn-sm rounded-xl bg-fp-paper px-4 py-2 text-sm font-bold text-fp-ink hover:bg-fp-amber"
+        >
+          Masuk
+        </a>
+        <a
+          routerLink="/register"
+          class="fp-btn-sm rounded-xl bg-fp-mint px-4 py-2 text-sm font-bold text-fp-ink hover:bg-emerald-400"
+        >
+          Mulai Gratis
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1">
+    <!-- Hero Section -->
+    <section class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-16 sm:pt-16 sm:pb-24">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
+        <!-- Hero Copy -->
+        <div class="lg:col-span-6 space-y-6">
+          <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-fp-amber border-2 border-fp-ink shadow-brutal-sm text-xs font-bold uppercase tracking-wider">
+            <span class="w-2.5 h-2.5 rounded-full bg-fp-ink" aria-hidden="true"></span>
+            Dasbor Keuangan Pribadi &amp; Pengeluaran
+          </div>
+
+          <h1 class="text-4xl sm:text-5xl font-bold tracking-tight text-fp-ink leading-[1.12]">
+            Atur Keuangan Pribadi Lebih Tenang, Jelas, dan Terkendali
+          </h1>
+
+          <p class="text-base sm:text-lg text-slate-700 font-medium leading-relaxed">
+            FinPulse membantu Anda mencatat pemasukan dan pengeluaran harian, memantau grafik arus kas,
+            menjaga batas anggaran bulanan, hingga mengunduh laporan PDF dan CSV dalam satu tempat yang ringkas.
+          </p>
+
+          <div class="flex flex-wrap items-center gap-4 pt-2">
+            <a
+              routerLink="/register"
+              class="fp-btn inline-flex items-center justify-center gap-2 rounded-2xl bg-fp-mint px-7 py-3.5 text-base font-bold text-fp-ink"
+            >
+              Mulai Gratis
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14m-6-6 6 6-6 6" />
+              </svg>
+            </a>
+
+            <a
+              routerLink="/login"
+              class="fp-btn inline-flex items-center justify-center rounded-2xl bg-fp-paper px-7 py-3.5 text-base font-bold text-fp-ink hover:bg-fp-amber"
+            >
+              Masuk
+            </a>
+          </div>
+
+          <ul class="flex flex-wrap items-center gap-x-6 gap-y-2 pt-3 text-sm font-bold text-slate-700">
+            <li class="inline-flex items-center gap-2">
+              <span class="w-5 h-5 rounded-md bg-fp-mint border-2 border-fp-ink inline-flex items-center justify-center text-xs" aria-hidden="true">&#10003;</span>
+              Gratis digunakan
+            </li>
+            <li class="inline-flex items-center gap-2">
+              <span class="w-5 h-5 rounded-md bg-fp-amber border-2 border-fp-ink inline-flex items-center justify-center text-xs" aria-hidden="true">&#10003;</span>
+              Pengingat batas anggaran
+            </li>
+            <li class="inline-flex items-center gap-2">
+              <span class="w-5 h-5 rounded-md bg-fp-paper border-2 border-fp-ink inline-flex items-center justify-center text-xs" aria-hidden="true">&#10003;</span>
+              Laporan PDF &amp; CSV
+            </li>
+          </ul>
+        </div>
+
+        <!-- Static Interactive-Style Dashboard Preview -->
+        <div class="lg:col-span-6">
+          <div class="fp-card-dark p-5 sm:p-6 text-white space-y-5" aria-label="Pratinjau tampilan dasbor FinPulse">
+            <!-- Top Bar -->
+            <div class="flex items-center justify-between gap-3 border-b border-slate-700 pb-4">
+              <div>
+                <p class="text-xs font-bold uppercase tracking-wider text-slate-300">Ringkasan Bulan Ini</p>
+                <p class="fp-num text-2xl sm:text-3xl font-bold text-fp-mint mt-1">Rp 7.840.000</p>
+              </div>
+              <span class="px-3 py-1 rounded-full bg-fp-mint/20 border border-fp-mint text-fp-mint text-xs font-bold">
+                +24% Tersimpan
+              </span>
+            </div>
+
+            <!-- Income & Expense Mini Cards -->
+            <div class="grid grid-cols-2 gap-3.5">
+              <div class="rounded-xl bg-fp-paper text-fp-ink border-2 border-fp-ink p-3.5">
+                <p class="text-xs font-bold uppercase tracking-wider text-slate-600">Pemasukan</p>
+                <p class="fp-num text-base sm:text-lg font-bold text-emerald-700 mt-1">Rp 12.500.000</p>
+              </div>
+              <div class="rounded-xl bg-fp-paper text-fp-ink border-2 border-fp-ink p-3.5">
+                <p class="text-xs font-bold uppercase tracking-wider text-slate-600">Pengeluaran</p>
+                <p class="fp-num text-base sm:text-lg font-bold text-rose-600 mt-1">Rp 4.660.000</p>
+              </div>
+            </div>
+
+            <!-- Mini Cashflow Bar Visual -->
+            <div class="rounded-xl bg-slate-800/90 border border-slate-700 p-4 space-y-3">
+              <div class="flex items-center justify-between text-xs font-bold">
+                <span class="text-slate-200">Tren Arus Kas 5 Bulan</span>
+                <span class="inline-flex items-center gap-3 text-[11px] text-slate-300">
+                  <span class="inline-flex items-center gap-1">
+                    <span class="w-2.5 h-2.5 rounded-sm bg-fp-mint inline-block" aria-hidden="true"></span>
+                    Masuk
+                  </span>
+                  <span class="inline-flex items-center gap-1">
+                    <span class="w-2.5 h-2.5 rounded-sm bg-fp-coral inline-block" aria-hidden="true"></span>
+                    Keluar
+                  </span>
+                </span>
+              </div>
+              <div class="grid grid-cols-5 gap-3 items-end h-24 pt-2" aria-hidden="true">
+                @for (bar of previewBars; track bar.label) {
+                  <div class="flex flex-col items-center gap-1.5 h-full justify-end">
+                    <div class="w-full flex items-end justify-center gap-1 h-full">
+                      <span
+                        class="w-3 rounded-t-md bg-fp-mint border border-fp-ink"
+                        [style.height.%]="bar.incomeHeight"
+                      ></span>
+                      <span
+                        class="w-3 rounded-t-md bg-fp-coral border border-fp-ink"
+                        [style.height.%]="bar.expenseHeight"
+                      ></span>
+                    </div>
+                    <span class="text-[11px] font-bold text-slate-300">{{ bar.label }}</span>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <!-- Budget Bar & Recent Transactions -->
+            <div class="rounded-xl bg-fp-paper text-fp-ink border-2 border-fp-ink p-4 space-y-3">
+              <div class="flex items-center justify-between text-xs font-bold">
+                <span>Anggaran Makan &amp; Minum</span>
+                <span class="fp-num text-slate-700">68% terpakai</span>
+              </div>
+              <div class="h-3.5 w-full rounded-full bg-fp-canvas border-2 border-fp-ink overflow-hidden" aria-hidden="true">
+                <div class="h-full w-[68%] bg-fp-amber fp-striped-bar border-r-2 border-fp-ink"></div>
+              </div>
+
+              <div class="pt-2 border-t border-slate-200 space-y-2">
+                @for (item of previewTransactions; track item.title) {
+                  <div class="flex items-center justify-between text-xs sm:text-sm gap-2">
+                    <div class="min-w-0">
+                      <p class="font-bold text-fp-ink truncate">{{ item.title }}</p>
+                      <p class="text-[11px] text-slate-600">{{ item.category }}</p>
+                    </div>
+                    <span
+                      class="fp-num font-bold whitespace-nowrap"
+                      [class.text-emerald-700]="item.positive"
+                      [class.text-rose-600]="!item.positive"
+                    >
+                      {{ item.amount }}
+                    </span>
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main Benefits Section -->
+    <section id="fitur" class="border-t-2 border-fp-ink bg-fp-paper py-16 sm:py-20">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="max-w-2xl space-y-3 mb-12">
+          <span class="inline-block px-3 py-1 rounded-lg bg-fp-mint border-2 border-fp-ink shadow-brutal-sm text-xs font-bold uppercase tracking-wider">
+            Manfaat Utama
+          </span>
+          <h2 class="text-3xl sm:text-4xl font-bold tracking-tight text-fp-ink">
+            Semua yang Anda Butuhkan untuk Menjaga Keuangan Tetap Sehat
+          </h2>
+          <p class="text-base text-slate-700 font-medium">
+            Dirancang agar pencatatan harian terasa ringan, laporan mudah dipahami, dan keputusan belanja jadi lebih bijak.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          @for (feature of features; track feature.title) {
+            <article class="fp-card fp-card-interactive p-6 sm:p-7 flex flex-col gap-4">
+              <div class="flex items-center justify-between gap-3">
+                <span
+                  class="w-12 h-12 rounded-xl border-2 border-fp-ink shadow-brutal-sm flex items-center justify-center"
+                  [ngClass]="feature.accentClass"
+                  aria-hidden="true"
+                >
+                  @switch (feature.icon) {
+                    @case ('wallet') {
+                      <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 7a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2v2h-5a3 3 0 0 0 0 6h5v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16 12h5" />
+                      </svg>
+                    }
+                    @case ('chart') {
+                      <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 19h16M7 15v-4m5 4V7m5 8v-6" />
+                      </svg>
+                    }
+                    @case ('bell') {
+                      <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 17H5l1.4-1.4A2 2 0 0 0 7 14.2V11a5 5 0 1 1 10 0v3.2c0 .5.2 1 .6 1.4L19 17h-4Z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M10 20a2 2 0 0 0 4 0" />
+                      </svg>
+                    }
+                    @case ('document') {
+                      <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M14 3v5h5M9 13h6M9 17h4" />
+                      </svg>
+                    }
+                  }
+                </span>
+                <span class="px-3 py-1 rounded-full bg-fp-canvas border-2 border-fp-ink text-xs font-bold">
+                  {{ feature.badge }}
+                </span>
+              </div>
+
+              <h3 class="text-xl font-bold text-fp-ink">{{ feature.title }}</h3>
+              <p class="text-sm sm:text-base text-slate-700 font-medium leading-relaxed">
+                {{ feature.description }}
+              </p>
+            </article>
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- How It Works 3 Steps -->
+    <section id="cara-kerja" class="border-t-2 border-fp-ink py-16 sm:py-20">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center max-w-2xl mx-auto space-y-3 mb-12">
+          <span class="inline-block px-3 py-1 rounded-lg bg-fp-amber border-2 border-fp-ink shadow-brutal-sm text-xs font-bold uppercase tracking-wider">
+            Cara Kerja
+          </span>
+          <h2 class="text-3xl sm:text-4xl font-bold tracking-tight text-fp-ink">
+            Mulai Kelola Uang Anda dalam 3 Langkah Sederhana
+          </h2>
+        </div>
+
+        <ol class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          @for (step of steps; track step.number) {
+            <li class="fp-card p-6 sm:p-7 flex flex-col gap-4">
+              <span
+                class="fp-num w-12 h-12 rounded-xl border-2 border-fp-ink shadow-brutal-sm flex items-center justify-center text-lg font-bold"
+                [ngClass]="step.accentClass"
+                aria-hidden="true"
+              >
+                {{ step.number }}
+              </span>
+              <h3 class="text-xl font-bold text-fp-ink">{{ step.title }}</h3>
+              <p class="text-sm sm:text-base text-slate-700 font-medium leading-relaxed">
+                {{ step.description }}
+              </p>
+            </li>
+          }
+        </ol>
+      </div>
+    </section>
+
+    <!-- Final CTA Section -->
+    <section class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
+      <div class="fp-card-dark p-8 sm:p-12 text-white flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
+        <div class="max-w-2xl space-y-3">
+          <span class="inline-block px-3 py-1 rounded-full bg-fp-amber text-fp-ink border-2 border-fp-ink text-xs font-bold uppercase tracking-wider">
+            Siap Lebih Teratur?
+          </span>
+          <h2 class="text-3xl sm:text-4xl font-bold tracking-tight">
+            Mulai Catat Keuangan Pribadi Anda Hari Ini
+          </h2>
+          <p class="text-slate-300 text-base font-medium leading-relaxed">
+            Buat akun gratis di FinPulse dan rasakan nyamannya memantau saldo, anggaran bulanan, dan laporan keuangan kapan saja.
+          </p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-4">
+          <a
+            routerLink="/register"
+            class="fp-btn inline-flex items-center justify-center rounded-2xl bg-fp-mint px-7 py-3.5 text-base font-bold text-fp-ink"
+          >
+            Mulai Gratis Sekarang
+          </a>
+          <a
+            routerLink="/login"
+            class="fp-btn inline-flex items-center justify-center rounded-2xl bg-fp-paper px-6 py-3.5 text-base font-bold text-fp-ink hover:bg-fp-amber"
+          >
+            Masuk
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t-2 border-fp-ink bg-fp-paper">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-2.5">
+        <span class="w-8 h-8 rounded-lg bg-fp-ink flex items-center justify-center" aria-hidden="true">
+          <svg class="w-5 h-5" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+            <path
+              d="M10 32H19L25 16L34 46L41 26L46 32H54"
+              stroke="#00D68F"
+              stroke-width="5.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </span>
+        <p class="text-sm font-bold text-fp-ink">
+          &copy; {{ currentYear }} FinPulse. Semua hak dilindungi.
+        </p>
+      </div>
+
+      <nav aria-label="Tautan cepat" class="flex flex-wrap items-center gap-5 text-sm font-bold text-slate-700">
+        <a href="#fitur" class="hover:text-fp-ink transition-colors">Fitur</a>
+        <a href="#cara-kerja" class="hover:text-fp-ink transition-colors">Cara Kerja</a>
+        <a routerLink="/login" class="hover:text-fp-ink transition-colors">Masuk</a>
+        <a routerLink="/register" class="hover:text-fp-ink transition-colors">Mulai Gratis</a>
+      </nav>
+    </div>
+  </footer>
+</div>

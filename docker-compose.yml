@@ -1,0 +1,38 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: finpulse-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - finpulse_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: finpulse-rabbitmq
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-finpulse}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-finpulse_dev}
+    volumes:
+      - finpulse_rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+volumes:
+  finpulse_redis_data:
+  finpulse_rabbitmq_data:

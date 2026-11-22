@@ -1,0 +1,189 @@
+<div class="relative">
+  <!-- Bell Button -->
+  <button
+    type="button"
+    (click)="togglePanel()"
+    class="fp-btn-sm relative inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white text-fp-ink hover:bg-[#FACC15]"
+    [attr.aria-expanded]="isOpen()"
+    aria-haspopup="true"
+    aria-label="Notifikasi over-budget"
+  >
+    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+      <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+      />
+    </svg>
+
+    @if (unreadCount() > 0) {
+      <span
+        data-testid="unread-badge"
+        class="fp-num absolute -right-1.5 -top-1.5 flex min-h-[22px] min-w-[22px] items-center justify-center rounded-full border-2 border-fp-ink bg-[#FF4D6D] px-1 text-[10px] font-bold leading-none text-white shadow-brutal-sm"
+      >
+        {{ unreadBadgeLabel() }}
+      </span>
+    }
+  </button>
+
+  <!-- Dropdown Panel -->
+  @if (isOpen()) {
+    <div
+      @modalPopIn
+      role="dialog"
+      aria-label="Panel Notifikasi Over-Budget"
+      class="fixed inset-x-3 top-18 z-50 overflow-hidden rounded-2xl border-2 border-fp-ink bg-fp-paper shadow-brutal-lg sm:absolute sm:inset-x-auto sm:right-0 sm:top-12 sm:w-[400px]"
+    >
+      <!-- Header -->
+      <div class="flex items-center justify-between gap-2 border-b-2 border-fp-ink bg-[#FACC15] px-4 py-3">
+        <div class="flex items-center gap-2">
+          <h2 class="text-sm font-bold text-fp-ink">Notifikasi Over-Budget</h2>
+          @if (unreadCount() > 0) {
+            <span class="fp-num rounded-lg border-2 border-fp-ink bg-[#FF4D6D] px-2 py-0.5 text-[11px] font-bold text-white shadow-brutal-sm">
+              {{ unreadCount() }} baru
+            </span>
+          }
+        </div>
+
+        <div class="flex items-center gap-1.5">
+          <button
+            type="button"
+            (click)="refreshAlerts()"
+            [disabled]="isLoading()"
+            class="fp-btn-sm inline-flex items-center gap-1 rounded-lg bg-white px-2 py-1 text-xs font-bold text-fp-ink hover:bg-fp-canvas disabled:opacity-50"
+            title="Segarkan notifikasi"
+          >
+            <svg
+              class="h-3.5 w-3.5"
+              [class.animate-spin]="isLoading()"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="2.2"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
+            </svg>
+            <span>Segarkan</span>
+          </button>
+
+          @if (unreadCount() > 0) {
+            <button
+              type="button"
+              (click)="markAllAsRead()"
+              [disabled]="isMarkingAll()"
+              class="fp-btn-sm rounded-lg bg-[#00D68F] px-2 py-1 text-xs font-bold text-fp-ink hover:bg-emerald-400 disabled:opacity-50"
+            >
+              @if (isMarkingAll()) {
+                <span>Memproses...</span>
+              } @else {
+                <span>Tandai Semua Dibaca</span>
+              }
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Body -->
+      <div class="max-h-[420px] overflow-y-auto">
+        @if (isLoading() && alerts().length === 0) {
+          <div class="flex flex-col items-center justify-center gap-2 py-12 text-center">
+            <app-spinner size="md" colorClass="text-fp-ink" />
+            <p class="text-xs font-bold text-slate-600">Memuat notifikasi...</p>
+          </div>
+        } @else if (alerts().length === 0) {
+          <div class="flex flex-col items-center justify-center px-6 py-12 text-center">
+            <div class="flex h-12 w-12 items-center justify-center rounded-xl border-2 border-fp-ink bg-[#00D68F] text-fp-ink shadow-brutal-sm">
+              <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <p class="mt-3 text-sm font-bold text-fp-ink">Semua Anggaran Terkendali</p>
+            <p class="mt-1 text-xs font-medium text-slate-600">
+              Belum ada peringatan over-budget untuk pengeluaran Anda saat ini.
+            </p>
+          </div>
+        } @else {
+          <ul class="divide-y-2 divide-fp-ink/10">
+            @for (alert of alerts(); track alert.id) {
+              <li
+                class="px-4 py-3.5 transition-colors"
+                [ngClass]="alert.isRead ? 'bg-fp-paper' : 'bg-[#FF4D6D]/10'"
+              >
+                <div class="flex items-start justify-between gap-2.5">
+                  <div class="flex min-w-0 items-center gap-2">
+                    <span
+                      class="h-2.5 w-2.5 shrink-0 rounded-full border border-fp-ink"
+                      [style.background-color]="getCategoryColor(alert.categoryColor)"
+                    ></span>
+                    <span class="truncate text-xs font-bold text-fp-ink">
+                      {{ alert.categoryName }}
+                    </span>
+                    <span class="shrink-0 rounded-md border border-fp-ink/30 bg-white px-1.5 py-0.5 text-[10px] font-bold text-fp-ink">
+                      {{ getPeriodLabel(alert) }}
+                    </span>
+                  </div>
+
+                  <div class="flex shrink-0 items-center gap-1.5">
+                    <span class="fp-num rounded-lg border-2 border-fp-ink bg-[#FF4D6D] px-2 py-0.5 text-[10px] font-bold text-white shadow-brutal-sm">
+                      {{ formatPercent(alert.utilizationPercentage) }}
+                    </span>
+                    @if (!alert.isRead) {
+                      <span
+                        class="h-2.5 w-2.5 rounded-full border border-fp-ink bg-[#FF4D6D]"
+                        title="Belum dibaca"
+                      ></span>
+                    }
+                  </div>
+                </div>
+
+                <p class="mt-1.5 text-xs font-medium leading-relaxed text-fp-ink">
+                  {{ alert.message }}
+                </p>
+
+                <div class="fp-num mt-2 flex items-center justify-between gap-2 rounded-lg border-2 border-fp-ink/15 bg-fp-canvas px-2.5 py-1.5 text-[11px]">
+                  <span class="font-sans font-semibold text-slate-600">Terpakai / Batas</span>
+                  <span class="font-bold text-fp-ink">
+                    <span class="text-rose-600">{{ formatIdr(alert.spentAmount) }}</span>
+                    <span class="text-slate-400"> / </span>
+                    <span>{{ formatIdr(alert.amountLimit) }}</span>
+                  </span>
+                </div>
+
+                <div class="mt-2.5 flex items-center justify-between gap-2">
+                  <span class="fp-num text-[11px] font-semibold text-slate-500">
+                    {{ formatDateTimeId(alert.updatedAt || alert.createdAt) }}
+                  </span>
+
+                  <div class="flex items-center gap-2">
+                    @if (!alert.isRead) {
+                      <button
+                        type="button"
+                        (click)="markAsRead(alert)"
+                        [disabled]="isAlertBusy(alert.id)"
+                        class="fp-btn-sm rounded-lg bg-[#00D68F] px-2 py-1 text-[11px] font-bold text-fp-ink hover:bg-emerald-400 disabled:opacity-50"
+                      >
+                        Tandai Dibaca
+                      </button>
+                    }
+                    <button
+                      type="button"
+                      (click)="deleteAlert(alert)"
+                      [disabled]="isAlertBusy(alert.id)"
+                      class="fp-btn-sm rounded-lg bg-white px-2 py-1 text-[11px] font-bold text-rose-600 hover:bg-[#FF4D6D] hover:text-white disabled:opacity-50"
+                    >
+                      Hapus
+                    </button>
+                  </div>
+                </div>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+    </div>
+  }
+</div>

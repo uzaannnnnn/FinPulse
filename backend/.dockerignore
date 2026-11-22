@@ -1,0 +1,17 @@
+# Build artifacts
+target/
+
+# Version control
+.git/
+.gitignore
+
+# Environment & secrets
+.env
+.env.*
+
+# Logs & OS/IDE metadata
+*.log
+.idea/
+*.iml
+.vscode/
+.DS_Store

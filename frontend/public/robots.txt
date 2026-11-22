@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /transactions
+Disallow: /budgets
+Disallow: /reports
+Disallow: /login
+Disallow: /register
+
+Sitemap: https://finpulse.eshace.com/sitemap.xml

@@ -1,0 +1,47 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:finpulse_test;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;NON_KEYWORDS=MONTH,YEAR
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: create-drop
+
+  flyway:
+    enabled: false
+
+  cache:
+    type: simple
+
+  rabbitmq:
+    listener:
+      simple:
+        auto-startup: false
+
+management:
+  health:
+    redis:
+      enabled: false
+    rabbit:
+      enabled: false
+
+finpulse:
+  cache:
+    dashboard-ttl-seconds: 300
+
+jwt:
+  secret: finpulse-test-only-jwt-secret-key-minimum-32-bytes-long-2026
+  access-expiration-ms: 900000
+  refresh-expiration-ms: 604800000
+
+cors:
+  allowed-origins: http://localhost:4200
+
+supabase:
+  url: ""
+  service-key: ""
+  storage-bucket: receipts
+  reports-bucket: reports

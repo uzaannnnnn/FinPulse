@@ -1,0 +1,624 @@
+<div class="mx-auto max-w-7xl space-y-4 sm:space-y-6">
+  <!-- Kinetic Command Bar & Period Filter -->
+  <section @springEnter class="fp-card bg-fp-paper p-4 sm:p-6">
+    <div class="flex w-full flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div class="min-w-0 space-y-1">
+        <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
+          <span class="inline-flex items-center gap-1.5 rounded-lg border-2 border-fp-ink bg-[#FACC15] px-2 py-0.5 text-[11px] font-bold text-fp-ink shadow-brutal-sm sm:px-2.5 sm:text-xs">
+            <span class="h-1.5 w-1.5 rounded-full bg-fp-ink"></span>
+            Ringkasan Analitik &bull; {{ selectedPeriodLabel() }}
+          </span>
+
+          @if (syncStatus() !== 'idle') {
+            <span
+              data-testid="dashboard-sync-badge"
+              class="inline-flex items-center gap-1.5 rounded-lg border-2 border-fp-ink px-2 py-0.5 text-[10px] font-bold shadow-brutal-sm sm:px-2.5 sm:text-[11px]"
+              [ngClass]="{
+                'bg-[#FACC15] text-fp-ink': syncStatus() === 'syncing',
+                'bg-[#00D68F] text-fp-ink': syncStatus() === 'synced' && syncSource() === 'CACHE',
+                'bg-sky-200 text-fp-ink': syncStatus() === 'synced' && syncSource() !== 'CACHE',
+                'bg-[#FF4D6D] text-white': syncStatus() === 'error'
+              }"
+            >
+              <span
+                class="h-1.5 w-1.5 rounded-full"
+                [ngClass]="{
+                  'animate-pulse bg-fp-ink': syncStatus() === 'syncing',
+                  'bg-fp-ink': syncStatus() === 'synced',
+                  'bg-white': syncStatus() === 'error'
+                }"
+              ></span>
+              @if (syncStatus() === 'syncing') {
+                <span>Menyinkronkan...</span>
+              } @else if (syncStatus() === 'error') {
+                <span>Gagal Sinkron</span>
+              } @else {
+                <span>
+                  Data terbaru
+                  @if (lastSyncedAt(); as syncedAt) {
+                    <span class="hidden sm:inline">&bull; {{ formatDateTimeId(syncedAt) }}</span>
+                  }
+                </span>
+              }
+            </span>
+          }
+        </div>
+        <h1 class="truncate text-xl font-bold tracking-tight text-fp-ink sm:text-3xl">
+          Halo, {{ currentUser()?.fullName || 'Pengguna FinPulse' }}
+        </h1>
+        <p class="hidden max-w-xl text-sm font-medium text-slate-600 sm:block">
+          Pantau denyut arus kas, realisasi anggaran, dan pergerakan saldo Anda dalam satu kanvas kinetik.
+        </p>
+      </div>
+
+      <!-- Flush-Right Action Toolbar: Period Selects + Compact Refresh + Export Buttons -->
+      <div class="flex flex-wrap items-center gap-2 lg:ml-auto lg:justify-end xl:flex-nowrap">
+        <div class="flex items-center gap-1.5">
+          <div class="w-32 sm:w-36">
+            <app-select
+              selectId="dashboard-month"
+              ariaLabel="Pilih Bulan"
+              [options]="monthOptions"
+              [value]="selectedMonth()"
+              [compact]="true"
+              (valueChange)="onMonthChange($event)"
+            />
+          </div>
+
+          <div class="w-24 sm:w-28">
+            <app-select
+              selectId="dashboard-year"
+              ariaLabel="Pilih Tahun"
+              [options]="yearSelectOptions"
+              [value]="selectedYear()"
+              [mono]="true"
+              [compact]="true"
+              (valueChange)="onYearChange($event)"
+            />
+          </div>
+
+          <button
+            type="button"
+            (click)="loadSummary()"
+            [disabled]="isLoading()"
+            title="Muat ulang ringkasan dashboard"
+            aria-label="Muat ulang ringkasan dashboard"
+            class="fp-btn-sm inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#0F172A] text-[#FAF8F5] hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <svg
+              class="h-4 w-4"
+              [class.animate-spin]="isLoading()"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="2.4"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
+            </svg>
+            <span class="sr-only">Refresh</span>
+          </button>
+        </div>
+
+        <div class="flex items-center gap-1.5">
+          <button
+            type="button"
+            (click)="requestQuickExport('PDF')"
+            [disabled]="exportingFormat() !== null"
+            class="fp-btn-sm inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl bg-[#00D68F] px-3 py-2 text-xs font-bold text-fp-ink hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            @if (exportingFormat() === 'PDF') {
+              <app-spinner size="sm" colorClass="text-fp-ink" />
+            }
+            <span class="sm:hidden">PDF</span>
+            <span class="hidden sm:inline">Ekspor PDF</span>
+          </button>
+
+          <button
+            type="button"
+            (click)="requestQuickExport('CSV')"
+            [disabled]="exportingFormat() !== null"
+            class="fp-btn-sm inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl bg-white px-3 py-2 text-xs font-bold text-fp-ink hover:bg-[#FACC15] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            @if (exportingFormat() === 'CSV') {
+              <app-spinner size="sm" colorClass="text-fp-ink" />
+            }
+            <span class="sm:hidden">CSV</span>
+            <span class="hidden sm:inline">Ekspor CSV</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Unread Over-Budget Alert Banner -->
+  @if (unreadAlertsCount() > 0 && !isAlertBannerDismissed()) {
+    <section
+      @springEnter
+      data-testid="over-budget-banner"
+      role="status"
+      class="flex flex-col justify-between gap-3 rounded-2xl border-2 border-fp-ink bg-[#FFF1F2] px-4 py-3 text-fp-ink shadow-brutal-coral sm:flex-row sm:items-center sm:px-5 sm:py-4"
+    >
+      <div class="flex items-start gap-3">
+        <div class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border-2 border-fp-ink bg-[#FF4D6D] text-white shadow-brutal-sm">
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M12 9v2m0 4h.01M10.29 3.86l-7.5 13A1 1 0 003.65 18.5h16.7a1 1 0 00.86-1.5l-7.5-13a1 1 0 00-1.72 0z"
+            />
+          </svg>
+        </div>
+        <div class="min-w-0">
+          <p class="text-xs font-bold text-fp-ink sm:text-sm">
+            {{ unreadAlertsCount() }} Peringatan Over-Budget Belum Dibaca
+          </p>
+          @if (latestUnreadAlert(); as latest) {
+            <p class="mt-0.5 truncate text-xs font-medium text-rose-800">{{ latest.message }}</p>
+          }
+        </div>
+      </div>
+
+      <div class="flex shrink-0 items-center gap-2">
+        <a
+          routerLink="/budgets"
+          class="fp-btn-sm rounded-xl bg-[#FF4D6D] px-3 py-1.5 text-xs font-bold text-white hover:bg-rose-600"
+        >
+          Tinjau Anggaran
+        </a>
+        <button
+          type="button"
+          (click)="dismissAlertBanner()"
+          class="fp-btn-sm rounded-xl bg-white px-3 py-1.5 text-xs font-bold text-fp-ink hover:bg-slate-100"
+        >
+          Tutup
+        </button>
+      </div>
+    </section>
+  }
+
+  <!-- Loading Skeleton State -->
+  @if (isLoading()) {
+    <div class="space-y-4 sm:space-y-6" aria-label="Memuat dashboard">
+      <div class="inline-flex items-center gap-2 rounded-xl border-2 border-fp-ink bg-fp-paper px-3.5 py-2 text-xs font-bold text-fp-ink shadow-brutal-sm">
+        <app-spinner size="sm" colorClass="text-fp-ink" />
+        <span>Memuat ringkasan analitik {{ selectedPeriodLabel() }}...</span>
+      </div>
+
+      <div class="grid grid-cols-1 gap-4 sm:gap-5 lg:grid-cols-12">
+        <div class="h-56 animate-pulse rounded-2xl border-2 border-fp-ink bg-slate-900/90 p-5 shadow-brutal lg:col-span-5"></div>
+        <div class="grid grid-cols-1 gap-4 lg:col-span-4">
+          <div class="h-24 animate-pulse rounded-2xl border-2 border-fp-ink bg-fp-paper shadow-brutal"></div>
+          <div class="h-24 animate-pulse rounded-2xl border-2 border-fp-ink bg-fp-paper shadow-brutal"></div>
+        </div>
+        <div class="h-56 animate-pulse rounded-2xl border-2 border-fp-ink bg-fp-paper shadow-brutal lg:col-span-3"></div>
+      </div>
+    </div>
+  } @else if (errorMessage()) {
+    <!-- Error Retry State -->
+    <section @springEnter class="fp-card flex flex-col items-center justify-center px-5 py-12 text-center">
+      <div class="flex h-12 w-12 items-center justify-center rounded-2xl border-2 border-fp-ink bg-[#FF4D6D] text-white shadow-brutal-sm">
+        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M12 9v2m0 4h.01M10.29 3.86l-7.5 13A1 1 0 003.65 18.5h16.7a1 1 0 00.86-1.5l-7.5-13a1 1 0 00-1.72 0z"
+          />
+        </svg>
+      </div>
+      <h2 class="mt-3 text-base font-bold text-fp-ink sm:text-lg">Gagal Memuat Analitik Dashboard</h2>
+      <p class="mt-1 max-w-md text-xs font-medium text-rose-700 sm:text-sm">{{ errorMessage() }}</p>
+      <button
+        type="button"
+        (click)="loadSummary()"
+        class="fp-btn mt-5 inline-flex items-center gap-2 rounded-xl bg-[#FACC15] px-5 py-2 text-sm font-bold text-fp-ink"
+      >
+        <span>Coba Lagi</span>
+      </button>
+    </section>
+  } @else {
+    @if (summary(); as data) {
+      <!-- ASYMMETRIC BENTO ROW 1: Hero 3D Wallet (5) + Stacked Flow Cards (4) + Living Heartbeat (3) -->
+      <section aria-label="Ringkasan KPI Keuangan" class="grid grid-cols-1 gap-4 sm:gap-5 lg:grid-cols-12">
+        <!-- Hero Balance / Wallet Card with 3D Tilt + Glare + Count-Up -->
+        <article
+          @springEnter
+          appTilt3d
+          [maxTilt]="6"
+          data-testid="hero-balance-card"
+          class="fp-card-dark relative flex flex-col justify-between overflow-hidden p-4 text-white sm:p-6 lg:col-span-5"
+        >
+          <div class="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-[#00D68F]/15 blur-2xl"></div>
+          <div class="pointer-events-none absolute -bottom-16 -left-10 h-40 w-40 rounded-full bg-[#FACC15]/10 blur-2xl"></div>
+
+          <div class="relative flex items-start justify-between gap-3">
+            <div class="flex items-center gap-2.5 sm:gap-3">
+              <div class="flex h-10 w-10 items-center justify-center rounded-xl border-2 border-fp-ink bg-[#00D68F] text-fp-ink shadow-[2px_2px_0px_0px_#FACC15] sm:h-11 sm:w-11">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.3">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                  />
+                </svg>
+              </div>
+              <div>
+                <h2 class="text-xs font-bold uppercase tracking-widest text-slate-300">
+                  Sisa Saldo Periode
+                </h2>
+                <p class="text-xs font-semibold text-[#00D68F]">{{ selectedPeriodLabel() }}</p>
+              </div>
+            </div>
+
+            <span class="fp-num rounded-lg border-2 border-slate-700 bg-slate-800/90 px-2.5 py-1 text-xs font-bold text-[#FACC15]">
+              {{ data.transactionCount }} transaksi
+            </span>
+          </div>
+
+          <div class="relative my-4 sm:my-6">
+            <p
+              class="fp-num text-2xl font-bold tracking-tight sm:text-4xl"
+              [class.text-white]="data.balance >= 0"
+              [class.text-[#FF4D6D]]="data.balance < 0"
+              [appCountUp]="data.balance"
+            ></p>
+            <p class="mt-1 hidden text-xs font-medium text-slate-400 sm:block">
+              Net arus kas bulan berjalan
+            </p>
+          </div>
+
+          <div class="relative flex flex-wrap items-center justify-between gap-3 border-t-2 border-dashed border-slate-700 pt-3.5 sm:pt-4">
+            <div>
+              <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 sm:text-[11px]">
+                Saldo Kumulatif Total
+              </span>
+              <span
+                class="fp-num text-sm font-bold sm:text-base"
+                [class.text-[#00D68F]]="data.cumulativeBalance >= 0"
+                [class.text-[#FF4D6D]]="data.cumulativeBalance < 0"
+                [appCountUp]="data.cumulativeBalance"
+              ></span>
+            </div>
+
+            <a
+              routerLink="/transactions"
+              class="fp-btn-sm inline-flex items-center gap-1.5 rounded-xl bg-[#FACC15] px-3 py-1.5 text-xs font-bold text-fp-ink hover:bg-amber-300 sm:px-3.5 sm:py-2"
+            >
+              <span>+ Transaksi</span>
+            </a>
+          </div>
+        </article>
+
+        <!-- Stacked Income & Expense Bento Column (4 cols) -->
+        <div class="grid grid-cols-1 gap-3.5 sm:grid-cols-2 sm:gap-4 lg:col-span-4 lg:grid-cols-1">
+          <!-- Total Pemasukan -->
+          <article @springEnter class="fp-card fp-card-interactive flex flex-col justify-between p-4 sm:p-5">
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2.5">
+                <div class="flex h-8 w-8 items-center justify-center rounded-xl border-2 border-fp-ink bg-[#00D68F] text-fp-ink shadow-brutal-sm sm:h-9 sm:w-9">
+                  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                  </svg>
+                </div>
+                <h2 class="text-sm font-bold text-fp-ink">Total Pemasukan</h2>
+              </div>
+              <span class="rounded-md border-2 border-fp-ink bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-fp-ink">
+                INCOME
+              </span>
+            </div>
+
+            <p
+              class="fp-num mt-3 text-xl font-bold text-emerald-700 sm:mt-4 sm:text-2xl"
+              [appCountUp]="data.totalIncome"
+            ></p>
+            <p class="mt-1 hidden text-xs font-medium text-slate-600 sm:block">
+              Akumulasi pemasukan {{ selectedPeriodLabel() }}
+            </p>
+          </article>
+
+          <!-- Total Pengeluaran -->
+          <article @springEnter class="fp-card fp-card-interactive flex flex-col justify-between p-4 sm:p-5">
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2.5">
+                <div class="flex h-8 w-8 items-center justify-center rounded-xl border-2 border-fp-ink bg-[#FF4D6D] text-white shadow-brutal-sm sm:h-9 sm:w-9">
+                  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
+                  </svg>
+                </div>
+                <h2 class="text-sm font-bold text-fp-ink">Total Pengeluaran</h2>
+              </div>
+              <span class="rounded-md border-2 border-fp-ink bg-rose-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-fp-ink">
+                EXPENSE
+              </span>
+            </div>
+
+            <p
+              class="fp-num mt-3 text-xl font-bold text-rose-600 sm:mt-4 sm:text-2xl"
+              [appCountUp]="data.totalExpense"
+            ></p>
+            <p class="mt-1 hidden text-xs font-medium text-slate-600 sm:block">
+              Total belanja {{ selectedPeriodLabel() }}
+            </p>
+          </article>
+        </div>
+
+        <!-- Living Heartbeat Widget (3 cols) -->
+        <div @springEnter class="lg:col-span-3">
+          <app-heartbeat-widget
+            [income]="data.totalIncome"
+            [expense]="data.totalExpense"
+          />
+        </div>
+      </section>
+
+      <!-- ASYMMETRIC BENTO ROW 2: Cashflow Bar Chart (8) + Category Breakdown (4) -->
+      <section class="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-12">
+        <!-- Grouped Bar Chart: Arus Kas Bulanan -->
+        <div @springEnter class="fp-card overflow-visible p-4 sm:p-6 lg:col-span-8">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 class="text-base font-bold text-fp-ink">Arus Kas Bulanan</h2>
+              <p class="mt-0.5 hidden text-xs font-medium text-slate-600 sm:block">
+                Perbandingan pemasukan vs pengeluaran 6 bulan terakhir
+              </p>
+            </div>
+            <span class="fp-num rounded-lg border-2 border-fp-ink bg-fp-canvas px-2.5 py-0.5 text-[11px] font-bold text-fp-ink">
+              6 BULAN
+            </span>
+          </div>
+
+          @if (hasCashflowData()) {
+            <div class="relative mt-4 h-64 w-full overflow-visible sm:h-72">
+              <canvas #cashflowCanvas aria-label="Grafik Arus Kas Bulanan"></canvas>
+            </div>
+          } @else {
+            <div class="mt-4 flex h-56 flex-col items-center justify-center rounded-xl border-2 border-dashed border-fp-ink/40 bg-fp-canvas/80 px-4 text-center sm:h-64">
+              <p class="text-sm font-bold text-fp-ink">Belum ada data arus kas</p>
+              <p class="mt-1 text-xs font-medium text-slate-600">
+                Catat pemasukan atau pengeluaran pertama Anda untuk melihat tren bulanan.
+              </p>
+            </div>
+          }
+        </div>
+
+        <!-- Doughnut Chart: Pengeluaran per Kategori (overflow-visible + External HTML Tooltip) -->
+        <div @springEnter class="fp-card overflow-visible p-4 sm:p-6 lg:col-span-4">
+          <div>
+            <h2 class="text-base font-bold text-fp-ink">Pengeluaran per Kategori</h2>
+            <p class="mt-0.5 hidden text-xs font-medium text-slate-600 sm:block">
+              Komposisi belanja {{ selectedPeriodLabel() }}
+            </p>
+          </div>
+
+          @if (hasExpenseBreakdown()) {
+            <div class="mt-4 space-y-4 overflow-visible">
+              <div class="relative mx-auto h-56 w-56 overflow-visible sm:h-60 sm:w-60">
+                <canvas #categoryCanvas aria-label="Grafik Pengeluaran per Kategori"></canvas>
+              </div>
+
+              <ul class="max-h-40 space-y-2 overflow-y-auto pr-1">
+                @for (item of data.expenseByCategory; track item.categoryId; let idx = $index) {
+                  <li class="flex items-center justify-between gap-2 rounded-xl border-2 border-fp-ink bg-white px-3 py-2 shadow-brutal-sm">
+                    <div class="flex min-w-0 items-center gap-2">
+                      <span
+                        class="h-3 w-3 shrink-0 rounded-full border border-fp-ink"
+                        [style.background-color]="getCategoryColor(item.categoryColor, idx)"
+                      ></span>
+                      <span class="truncate text-xs font-bold text-fp-ink">
+                        {{ item.categoryName }}
+                      </span>
+                    </div>
+                    <div class="shrink-0 text-right">
+                      <p class="fp-num text-xs font-bold text-fp-ink">
+                        {{ formatIdr(item.amount) }}
+                      </p>
+                      <p class="fp-num text-[10px] font-bold text-slate-500">
+                        {{ formatPercent(item.percentage) }}
+                      </p>
+                    </div>
+                  </li>
+                }
+              </ul>
+            </div>
+          } @else {
+            <div class="mt-4 flex h-56 flex-col items-center justify-center rounded-xl border-2 border-dashed border-fp-ink/40 bg-fp-canvas/80 px-6 text-center sm:h-64">
+              <p class="text-sm font-bold text-fp-ink">Belum Ada Pengeluaran</p>
+              <p class="mt-1 text-xs font-medium text-slate-600">
+                Belum ada transaksi pengeluaran tercatat pada {{ selectedPeriodLabel() }}.
+              </p>
+            </div>
+          }
+        </div>
+      </section>
+
+      <!-- ASYMMETRIC BENTO ROW 3: Animated Striped Budget Progress (5) + Staggered Recent Transactions (7) -->
+      <section class="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-12">
+        <!-- Budget Progress -->
+        <div @springEnter class="fp-card p-4 sm:p-6 lg:col-span-5">
+          <div class="flex items-center justify-between gap-3 border-b-2 border-fp-ink/15 pb-3.5 sm:pb-4">
+            <div>
+              <div class="flex flex-wrap items-center gap-2">
+                <h2 class="text-base font-bold text-fp-ink">Progres Anggaran Bulan Ini</h2>
+                @if (overBudgetCount() > 0) {
+                  <span class="rounded-lg border-2 border-fp-ink bg-[#FF4D6D] px-2 py-0.5 text-[10px] font-bold uppercase text-white shadow-brutal-sm">
+                    {{ overBudgetCount() }} Over Budget
+                  </span>
+                }
+              </div>
+              <p class="mt-0.5 hidden text-xs font-medium text-slate-600 sm:block">
+                Realisasi terhadap plafon {{ selectedPeriodLabel() }}
+              </p>
+            </div>
+
+            <a
+              routerLink="/budgets"
+              class="fp-btn-sm shrink-0 rounded-lg bg-fp-canvas px-2.5 py-1 text-xs font-bold text-fp-ink hover:bg-[#FACC15]"
+            >
+              Kelola &rarr;
+            </a>
+          </div>
+
+          @if (data.budgetProgress.length === 0) {
+            <div class="mt-4 flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-fp-ink/40 bg-fp-canvas/80 px-5 py-8 text-center">
+              <p class="text-sm font-bold text-fp-ink">Belum Ada Anggaran Diatur</p>
+              <a
+                routerLink="/budgets"
+                class="fp-btn-sm mt-3 inline-flex items-center gap-1.5 rounded-xl bg-[#00D68F] px-4 py-2 text-xs font-bold text-fp-ink"
+              >
+                Atur Anggaran
+              </a>
+            </div>
+          } @else {
+            <div class="mt-4 space-y-3" [@staggerList]="data.budgetProgress.length">
+              @for (budget of data.budgetProgress; track budget.id; let idx = $index) {
+                <div class="rounded-xl border-2 border-fp-ink bg-white p-3 shadow-brutal-sm sm:p-3.5">
+                  <div class="flex items-center justify-between gap-2">
+                    <div class="flex min-w-0 items-center gap-2">
+                      <span
+                        class="h-3 w-3 shrink-0 rounded-full border border-fp-ink"
+                        [style.background-color]="getCategoryColor(budget.categoryColor, idx)"
+                      ></span>
+                      <span class="truncate text-sm font-bold text-fp-ink">
+                        {{ budget.categoryName }}
+                      </span>
+                      @if (getBudgetStatusLabel(budget); as badgeLabel) {
+                        <span
+                          class="shrink-0 rounded-md border border-fp-ink px-2 py-0.5 text-[10px] font-bold uppercase"
+                          [ngClass]="getBudgetStatusBadgeClass(budget)"
+                        >
+                          {{ badgeLabel }}
+                        </span>
+                      }
+                    </div>
+                    <span
+                      class="fp-num shrink-0 text-xs font-bold"
+                      [class.text-rose-600]="budget.isOverBudget || budget.utilizationPercentage >= 100"
+                      [class.text-amber-700]="!budget.isOverBudget && budget.utilizationPercentage >= 80 && budget.utilizationPercentage < 100"
+                      [class.text-emerald-700]="!budget.isOverBudget && budget.utilizationPercentage < 80"
+                    >
+                      {{ formatPercent(budget.utilizationPercentage) }}
+                    </span>
+                  </div>
+
+                  <!-- Animated Striped Kinetic Progress Bar -->
+                  <div class="mt-2 h-3.5 w-full overflow-hidden rounded-full border-2 border-fp-ink bg-fp-canvas">
+                    <div
+                      class="fp-striped-bar h-full rounded-full transition-all duration-500"
+                      [ngClass]="getBudgetBarClass(budget)"
+                      [style.width.%]="getClampedPercentage(budget.utilizationPercentage)"
+                    ></div>
+                  </div>
+
+                  <div class="mt-2 flex items-center justify-between text-xs font-medium text-slate-600">
+                    <span class="fp-num text-[11px]">
+                      <strong class="text-fp-ink">{{ formatIdr(budget.spentAmount) }}</strong>
+                      / {{ formatIdr(budget.amountLimit) }}
+                    </span>
+                    @if (budget.remainingAmount >= 0) {
+                      <span class="fp-num text-[11px] font-bold text-emerald-700">
+                        Sisa {{ formatIdr(budget.remainingAmount) }}
+                      </span>
+                    } @else {
+                      <span class="fp-num text-[11px] font-bold text-rose-600">
+                        Lebih {{ formatIdr(-budget.remainingAmount) }}
+                      </span>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+
+        <!-- Recent Transactions (Staggered List) -->
+        <div @springEnter class="fp-card p-4 sm:p-6 lg:col-span-7">
+          <div class="flex items-center justify-between gap-3 border-b-2 border-fp-ink/15 pb-3.5 sm:pb-4">
+            <div>
+              <h2 class="text-base font-bold text-fp-ink">Transaksi Terbaru</h2>
+              <p class="mt-0.5 hidden text-xs font-medium text-slate-600 sm:block">
+                Hingga 5 catatan transaksi terakhir Anda
+              </p>
+            </div>
+
+            <a
+              routerLink="/transactions"
+              class="fp-btn-sm shrink-0 rounded-lg bg-fp-canvas px-2.5 py-1 text-xs font-bold text-fp-ink hover:bg-[#00D68F]"
+            >
+              Lihat Semua &rarr;
+            </a>
+          </div>
+
+          @if (recentTransactions().length === 0) {
+            <div class="mt-4 flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-fp-ink/40 bg-fp-canvas/80 px-5 py-8 text-center">
+              <p class="text-sm font-bold text-fp-ink">Belum Ada Transaksi</p>
+              <a
+                routerLink="/transactions"
+                class="fp-btn-sm mt-3 inline-flex items-center gap-1.5 rounded-xl bg-[#00D68F] px-4 py-2 text-xs font-bold text-fp-ink"
+              >
+                Catat Transaksi
+              </a>
+            </div>
+          } @else {
+            <ul class="mt-4 space-y-2.5" [@staggerList]="recentTransactions().length">
+              @for (tx of recentTransactions(); track tx.id; let idx = $index) {
+                <li class="fp-card-interactive flex items-center justify-between gap-3 rounded-xl border-2 border-fp-ink bg-white px-3.5 py-2.5 shadow-brutal-sm sm:px-4 sm:py-3">
+                  <div class="flex min-w-0 items-center gap-2.5 sm:gap-3">
+                    <div
+                      class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border-2 border-fp-ink sm:h-10 sm:w-10"
+                      [style.background-color]="getCategoryColor(tx.categoryColor, idx) + '26'"
+                    >
+                      <span
+                        class="h-3 w-3 rounded-full border border-fp-ink"
+                        [style.background-color]="getCategoryColor(tx.categoryColor, idx)"
+                      ></span>
+                    </div>
+
+                    <div class="min-w-0">
+                      <p class="truncate text-sm font-bold text-fp-ink">
+                        {{ tx.description || tx.categoryName }}
+                      </p>
+                      <div class="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs font-medium text-slate-600">
+                        <span class="rounded-md border border-fp-ink/30 bg-fp-canvas px-1.5 py-0.5 text-[10px] font-bold text-fp-ink sm:text-[11px]">
+                          {{ tx.categoryName }}
+                        </span>
+                        <span>&bull;</span>
+                        <span>{{ formatDateId(tx.transactionDate) }}</span>
+                        @if (hasSafeReceipt(tx.receiptUrl)) {
+                          <span class="inline-flex items-center gap-0.5 font-bold text-emerald-700" title="Memiliki lampiran struk">
+                            &bull; Struk
+                          </span>
+                        }
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="shrink-0 text-right">
+                    <p
+                      class="fp-num text-xs font-bold sm:text-sm"
+                      [class.text-emerald-700]="tx.type === 'INCOME'"
+                      [class.text-rose-600]="tx.type === 'EXPENSE'"
+                    >
+                      {{ tx.type === 'INCOME' ? '+' : '-' }}{{ formatIdr(tx.amount) }}
+                    </p>
+                    <span
+                      class="mt-0.5 inline-block rounded border border-fp-ink/20 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide sm:text-[10px]"
+                      [class.bg-emerald-50]="tx.type === 'INCOME'"
+                      [class.text-emerald-800]="tx.type === 'INCOME'"
+                      [class.bg-rose-50]="tx.type === 'EXPENSE'"
+                      [class.text-rose-800]="tx.type === 'EXPENSE'"
+                    >
+                      {{ tx.type }}
+                    </span>
+                  </div>
+                </li>
+              }
+            </ul>
+          }
+        </div>
+      </section>
+    }
+  }
+</div>

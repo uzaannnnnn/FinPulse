@@ -1,0 +1,1736 @@
+openapi: 3.0.3
+info:
+  title: FinPulse API
+  version: 3.0.0-sprint3
+  description: >
+    Kontrak API resmi untuk aplikasi FinPulse (Personal Finance & Expense Dashboard).
+    Mencakup fondasi autentikasi JWT (Sprint 1), CRUD Transaksi, Upload Struk Supabase Storage,
+    CRUD Anggaran Bulanan, dan Analitik Dashboard (Sprint 2), serta Redis Cache metadata,
+    Notifikasi Over-Budget RabbitMQ, dan Background Job Ekspor Laporan PDF/CSV (Sprint 3).
+
+servers:
+  - url: http://localhost:8080
+    description: Local Development Server
+
+tags:
+  - name: Auth
+    description: Registrasi, login, refresh token, logout, dan profil pengguna aktif
+  - name: Categories
+    description: Daftar kategori pemasukan dan pengeluaran
+  - name: Transactions
+    description: CRUD transaksi keuangan, filter/paginasi, dan upload foto struk
+  - name: Budgets
+    description: Manajemen batas anggaran bulanan dan realisasi pemakaian
+  - name: Dashboard
+    description: Ringkasan KPI (di-cache Redis), grafik arus kas bulanan, dan progres anggaran
+  - name: Alerts
+    description: Notifikasi over-budget hasil consumer RabbitMQ
+  - name: Reports
+    description: Permintaan dan polling status ekspor laporan bulanan PDF/CSV asinkron
+
+paths:
+  /api/auth/register:
+    post:
+      tags:
+        - Auth
+      summary: Registrasi akun pengguna baru
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Registrasi berhasil dan sesi JWT diterbitkan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Validasi input gagal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Email sudah terdaftar
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Login pengguna dengan email dan password
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login berhasil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Validasi input gagal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Email atau password salah
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/auth/refresh:
+    post:
+      tags:
+        - Auth
+      summary: Perbarui Access Token menggunakan Refresh Token
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Token baru berhasil diterbitkan (rotasi refresh token)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Refresh token wajib diisi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Refresh token tidak valid, sudah dicabut, atau kedaluwarsa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/auth/logout:
+    post:
+      tags:
+        - Auth
+      summary: Logout dan mencabut Refresh Token pengguna
+      operationId: logout
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '204':
+          description: Logout berhasil dan refresh token dicabut
+        '401':
+          description: Token autentikasi tidak valid atau tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/auth/me:
+    get:
+      tags:
+        - Auth
+      summary: Ambil profil pengguna yang sedang terautentikasi
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Profil pengguna aktif
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDto'
+        '401':
+          description: Belum terautentikasi atau token tidak valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/categories:
+    get:
+      tags:
+        - Categories
+      summary: Ambil daftar kategori sistem dan kategori milik pengguna
+      operationId: getCategories
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: type
+          in: query
+          required: false
+          description: Filter kategori berdasarkan tipe transaksi
+          schema:
+            $ref: '#/components/schemas/TransactionType'
+      responses:
+        '200':
+          description: Daftar kategori berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryDto'
+        '400':
+          description: Parameter filter tipe tidak valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Belum terautentikasi atau token tidak valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/transactions:
+    get:
+      tags:
+        - Transactions
+      summary: Ambil daftar transaksi milik pengguna dengan paginasi dan filter
+      operationId: listTransactions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+        - name: sortBy
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [transactionDate, amount, createdAt]
+            default: transactionDate
+        - name: sortDir
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ASC, DESC]
+            default: DESC
+        - name: type
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/TransactionType'
+        - name: categoryId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: startDate
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+            example: '2026-11-01'
+        - name: endDate
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+            example: '2026-11-30'
+        - name: search
+          in: query
+          required: false
+          description: Pencarian case-insensitive pada deskripsi transaksi
+          schema:
+            type: string
+            maxLength: 100
+      responses:
+        '200':
+          description: Halaman daftar transaksi berhasil diambil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionPageResponse'
+        '400':
+          description: Parameter filter/paginasi tidak valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Belum terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - Transactions
+      summary: Buat transaksi pemasukan atau pengeluaran baru (memicu invalidasi cache Redis & event over-budget)
+      operationId: createTransaction
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTransactionRequest'
+      responses:
+        '201':
+          description: Transaksi berhasil dibuat
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionDto'
+        '400':
+          description: Validasi input gagal atau tipe transaksi tidak cocok dengan kategori
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Belum terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Kategori tidak ditemukan atau tidak dapat diakses pengguna
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/transactions/receipt:
+    post:
+      tags:
+        - Transactions
+      summary: Upload foto struk transaksi ke Supabase Storage
+      operationId: uploadTransactionReceipt
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Gambar struk (JPEG, PNG, atau WebP, maks 5 MB)
+      responses:
+        '201':
+          description: Foto struk berhasil diunggah ke Supabase Storage
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceiptUploadResponse'
+        '400':
+          description: File kosong, format bukan gambar yang diizinkan, atau ukuran melebihi 5 MB
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Belum terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Layanan Supabase Storage belum dikonfigurasi atau tidak tersedia
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/transactions/{id}:
+    get:
+      tags:
+        - Transactions
+      summary: Ambil detail transaksi milik pengguna
+      operationId: getTransactionById
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Detail transaksi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionDto'
+        '401':
+          description: Belum terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Transaksi tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags:
+        - Transactions
+      summary: Perbarui transaksi milik pengguna (memicu invalidasi cache Redis & evaluasi over-budget)
+      operationId: updateTransaction
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTransactionRequest'
+      responses:
+        '200':
+          description: Transaksi berhasil diperbarui
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionDto'
+        '400':
+          description: Validasi input gagal atau tipe transaksi tidak cocok dengan kategori
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Belum terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Transaksi atau kategori tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Transactions
+      summary: Hapus transaksi milik pengguna (memicu invalidasi cache Redis)
+      operationId: deleteTransaction
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Transaksi berhasil dihapus
+        '401':
+          description: Belum terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Transaksi tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/budgets:
+    get:
+      tags:
+        - Budgets
+      summary: Ambil daftar batas anggaran bulanan beserta realisasi pemakaian
+      operationId: listBudgets
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: month
+          in: query
+          required: false
+          description: Bulan (1-12). Wajib diisi bersama year jika salah satu dikirim.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+        - name: year
+          in: query
+          required: false
+          description: Tahun (>= 2020). Wajib diisi bersama month jika salah satu dikirim.
+          schema:
+            type: integer
+            minimum: 2020
+      responses:
+        '200':
+          description: Daftar anggaran bulanan dengan realisasi belanja
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BudgetDto'
+        '400':
+          description: Parameter periode month/year tidak valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Belum terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - Budgets
+      summary: Buat batas anggaran bulanan untuk kategori pengeluaran
+      operationId: createBudget
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBudgetRequest'
+      responses:
+        '201':
+          description: Batas anggaran berhasil dibuat
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetDto'
+        '400':
+          description: Validasi gagal atau kategori bukan bertipe EXPENSE
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Belum terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Kategori tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Anggaran untuk kategori dan periode bulan/tahun tersebut sudah ada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/budgets/{id}:
+    put:
+      tags:
+        - Budgets
+      summary: Perbarui nominal batas anggaran bulanan
+      operationId: updateBudget
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBudgetRequest'
+      responses:
+        '200':
+          description: Batas anggaran berhasil diperbarui
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetDto'
+        '400':
+          description: Validasi input gagal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Belum terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Anggaran tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Budgets
+      summary: Hapus batas anggaran bulanan milik pengguna
+      operationId: deleteBudget
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Anggaran berhasil dihapus
+        '401':
+          description: Belum terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Anggaran tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/dashboard/summary:
+    get:
+      tags:
+        - Dashboard
+      summary: Ambil ringkasan KPI saldo, grafik arus kas bulanan, progres anggaran, dan transaksi terbaru (didukung Redis Cache)
+      operationId: getDashboardSummary
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: month
+          in: query
+          required: false
+          description: Bulan fokus analitik (1-12, default bulan berjalan). Wajib bersama year jika salah satu dikirim.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+        - name: year
+          in: query
+          required: false
+          description: Tahun fokus analitik (>= 2020, default tahun berjalan). Wajib bersama month jika salah satu dikirim.
+          schema:
+            type: integer
+            minimum: 2020
+        - name: monthsBack
+          in: query
+          required: false
+          description: Jumlah bulan historis untuk grafik arus kas bulanan (1-12)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+            default: 6
+      responses:
+        '200':
+          description: Ringkasan analitik dashboard berhasil diambil
+          headers:
+            X-Cache-Status:
+              description: Status cache Redis (HIT atau MISS)
+              schema:
+                type: string
+                enum: [HIT, MISS]
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardSummaryDto'
+        '400':
+          description: Parameter periode tidak valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Belum terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/alerts:
+    get:
+      tags:
+        - Alerts
+      summary: Ambil daftar notifikasi over-budget milik pengguna aktif
+      operationId: listAlerts
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: unreadOnly
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Daftar notifikasi over-budget dan jumlah belum dibaca
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertListResponse'
+        '400':
+          description: Parameter query tidak valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Belum terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/alerts/{id}/read:
+    patch:
+      tags:
+        - Alerts
+      summary: Tandai satu notifikasi over-budget milik pengguna sebagai sudah dibaca
+      operationId: markAlertAsRead
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Notifikasi berhasil ditandai dibaca
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetAlertDto'
+        '401':
+          description: Belum terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Notifikasi tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/alerts/read-all:
+    patch:
+      tags:
+        - Alerts
+      summary: Tandai seluruh notifikasi over-budget milik pengguna sebagai sudah dibaca
+      operationId: markAllAlertsAsRead
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Seluruh notifikasi berhasil ditandai dibaca
+        '401':
+          description: Belum terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/alerts/{id}:
+    delete:
+      tags:
+        - Alerts
+      summary: Hapus satu notifikasi over-budget milik pengguna
+      operationId: deleteAlert
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Notifikasi berhasil dihapus
+        '401':
+          description: Belum terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Notifikasi tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/reports/export:
+    post:
+      tags:
+        - Reports
+      summary: Ajukan background job ekspor laporan bulanan (PDF atau CSV) melalui RabbitMQ
+      operationId: requestReportExport
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReportExportRequest'
+      responses:
+        '202':
+          description: Permintaan ekspor laporan diterima dan masuk antrean RabbitMQ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportExportDto'
+        '400':
+          description: Validasi input bulan/tahun/format gagal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Belum terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Antrean broker RabbitMQ tidak tersedia
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/reports:
+    get:
+      tags:
+        - Reports
+      summary: Ambil daftar riwayat permintaan ekspor laporan milik pengguna
+      operationId: listReportExports
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Daftar riwayat ekspor laporan pengguna
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReportExportDto'
+        '400':
+          description: Parameter limit tidak valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Belum terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/reports/{id}:
+    get:
+      tags:
+        - Reports
+      summary: Ambil status dan tautan unduhan satu job ekspor laporan milik pengguna
+      operationId: getReportExportById
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Status job ekspor laporan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportExportDto'
+        '401':
+          description: Belum terautentikasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Job laporan tidak ditemukan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    TransactionType:
+      type: string
+      enum:
+        - INCOME
+        - EXPENSE
+      example: EXPENSE
+
+    ReportFormat:
+      type: string
+      enum:
+        - PDF
+        - CSV
+      example: PDF
+
+    ReportStatus:
+      type: string
+      enum:
+        - PENDING
+        - PROCESSING
+        - COMPLETED
+        - FAILED
+      example: COMPLETED
+
+    RegisterRequest:
+      type: object
+      required:
+        - fullName
+        - email
+        - password
+      properties:
+        fullName:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: Budi Santoso
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          example: budi@finpulse.app
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 72
+          example: Rahasia123!
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: budi@finpulse.app
+        password:
+          type: string
+          format: password
+          minLength: 1
+          example: Rahasia123!
+
+    RefreshTokenRequest:
+      type: object
+      required:
+        - refreshToken
+      properties:
+        refreshToken:
+          type: string
+          minLength: 1
+          example: 7f8a9c12-4b3e-4d1a-9f88-1234567890ab
+
+    UserDto:
+      type: object
+      required:
+        - id
+        - email
+        - fullName
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        email:
+          type: string
+          format: email
+          example: budi@finpulse.app
+        fullName:
+          type: string
+          example: Budi Santoso
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-11-21T10:30:00Z'
+
+    AuthResponse:
+      type: object
+      required:
+        - accessToken
+        - refreshToken
+        - tokenType
+        - expiresIn
+        - user
+      properties:
+        accessToken:
+          type: string
+          example: eyJhbGciOiJIUzI1NiJ9...
+        refreshToken:
+          type: string
+          example: 7f8a9c12-4b3e-4d1a-9f88-1234567890ab
+        tokenType:
+          type: string
+          example: Bearer
+        expiresIn:
+          type: integer
+          format: int64
+          description: Masa berlaku access token dalam detik
+          example: 900
+        user:
+          $ref: '#/components/schemas/UserDto'
+
+    CategoryDto:
+      type: object
+      required:
+        - id
+        - name
+        - type
+        - isDefault
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 660e8400-e29b-41d4-a716-446655440001
+        name:
+          type: string
+          example: Makanan & Minuman
+        type:
+          $ref: '#/components/schemas/TransactionType'
+        icon:
+          type: string
+          nullable: true
+          example: utensils
+        color:
+          type: string
+          nullable: true
+          example: '#F59E0B'
+        isDefault:
+          type: boolean
+          example: true
+
+    CreateTransactionRequest:
+      type: object
+      required:
+        - categoryId
+        - type
+        - amount
+        - transactionDate
+      properties:
+        categoryId:
+          type: string
+          format: uuid
+          example: 660e8400-e29b-41d4-a716-446655440001
+        type:
+          $ref: '#/components/schemas/TransactionType'
+        amount:
+          type: number
+          format: double
+          exclusiveMinimum: true
+          minimum: 0
+          maximum: 9999999999999.99
+          example: 125000.00
+        description:
+          type: string
+          nullable: true
+          maxLength: 500
+          example: Makan siang tim
+        transactionDate:
+          type: string
+          format: date
+          example: '2026-11-21'
+        receiptUrl:
+          type: string
+          nullable: true
+          maxLength: 2048
+          example: https://xyz.supabase.co/storage/v1/object/public/receipts/user-id/abc.jpg
+
+    UpdateTransactionRequest:
+      type: object
+      required:
+        - categoryId
+        - type
+        - amount
+        - transactionDate
+      properties:
+        categoryId:
+          type: string
+          format: uuid
+          example: 660e8400-e29b-41d4-a716-446655440001
+        type:
+          $ref: '#/components/schemas/TransactionType'
+        amount:
+          type: number
+          format: double
+          exclusiveMinimum: true
+          minimum: 0
+          maximum: 9999999999999.99
+          example: 150000.00
+        description:
+          type: string
+          nullable: true
+          maxLength: 500
+          example: Makan siang tim (revisi)
+        transactionDate:
+          type: string
+          format: date
+          example: '2026-11-21'
+        receiptUrl:
+          type: string
+          nullable: true
+          maxLength: 2048
+          example: https://xyz.supabase.co/storage/v1/object/public/receipts/user-id/abc.jpg
+
+    TransactionDto:
+      type: object
+      required:
+        - id
+        - categoryId
+        - categoryName
+        - type
+        - amount
+        - transactionDate
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        categoryId:
+          type: string
+          format: uuid
+        categoryName:
+          type: string
+          example: Makanan & Minuman
+        categoryIcon:
+          type: string
+          nullable: true
+          example: utensils
+        categoryColor:
+          type: string
+          nullable: true
+          example: '#F59E0B'
+        type:
+          $ref: '#/components/schemas/TransactionType'
+        amount:
+          type: number
+          format: double
+          example: 125000.00
+        description:
+          type: string
+          nullable: true
+          example: Makan siang tim
+        transactionDate:
+          type: string
+          format: date
+          example: '2026-11-21'
+        receiptUrl:
+          type: string
+          nullable: true
+          example: https://xyz.supabase.co/storage/v1/object/public/receipts/user-id/abc.jpg
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    TransactionPageResponse:
+      type: object
+      required:
+        - content
+        - page
+        - size
+        - totalElements
+        - totalPages
+        - first
+        - last
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransactionDto'
+        page:
+          type: integer
+          example: 0
+        size:
+          type: integer
+          example: 10
+        totalElements:
+          type: integer
+          format: int64
+          example: 24
+        totalPages:
+          type: integer
+          example: 3
+        first:
+          type: boolean
+          example: true
+        last:
+          type: boolean
+          example: false
+
+    ReceiptUploadResponse:
+      type: object
+      required:
+        - receiptUrl
+        - filePath
+        - contentType
+        - sizeBytes
+      properties:
+        receiptUrl:
+          type: string
+          example: https://xyz.supabase.co/storage/v1/object/public/receipts/user-id/abc.jpg
+        filePath:
+          type: string
+          example: user-id/abc.jpg
+        contentType:
+          type: string
+          example: image/jpeg
+        sizeBytes:
+          type: integer
+          format: int64
+          example: 245120
+
+    CreateBudgetRequest:
+      type: object
+      required:
+        - categoryId
+        - month
+        - year
+        - amountLimit
+      properties:
+        categoryId:
+          type: string
+          format: uuid
+        month:
+          type: integer
+          minimum: 1
+          maximum: 12
+          example: 11
+        year:
+          type: integer
+          minimum: 2020
+          maximum: 2100
+          example: 2026
+        amountLimit:
+          type: number
+          format: double
+          exclusiveMinimum: true
+          minimum: 0
+          maximum: 9999999999999.99
+          example: 2500000.00
+
+    UpdateBudgetRequest:
+      type: object
+      required:
+        - amountLimit
+      properties:
+        amountLimit:
+          type: number
+          format: double
+          exclusiveMinimum: true
+          minimum: 0
+          maximum: 9999999999999.99
+          example: 3000000.00
+
+    BudgetDto:
+      type: object
+      required:
+        - id
+        - categoryId
+        - categoryName
+        - month
+        - year
+        - amountLimit
+        - spentAmount
+        - remainingAmount
+        - utilizationPercentage
+        - isOverBudget
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        categoryId:
+          type: string
+          format: uuid
+        categoryName:
+          type: string
+          example: Makanan & Minuman
+        categoryIcon:
+          type: string
+          nullable: true
+          example: utensils
+        categoryColor:
+          type: string
+          nullable: true
+          example: '#F59E0B'
+        month:
+          type: integer
+          example: 11
+        year:
+          type: integer
+          example: 2026
+        amountLimit:
+          type: number
+          format: double
+          example: 2500000.00
+        spentAmount:
+          type: number
+          format: double
+          example: 1750000.00
+        remainingAmount:
+          type: number
+          format: double
+          example: 750000.00
+        utilizationPercentage:
+          type: number
+          format: double
+          example: 70.0
+        isOverBudget:
+          type: boolean
+          example: false
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    MonthlyCashflowDto:
+      type: object
+      required:
+        - year
+        - month
+        - label
+        - totalIncome
+        - totalExpense
+        - net
+      properties:
+        year:
+          type: integer
+          example: 2026
+        month:
+          type: integer
+          example: 11
+        label:
+          type: string
+          example: Nov 2026
+        totalIncome:
+          type: number
+          format: double
+          example: 12000000.00
+        totalExpense:
+          type: number
+          format: double
+          example: 5400000.00
+        net:
+          type: number
+          format: double
+          example: 6600000.00
+
+    CategoryBreakdownDto:
+      type: object
+      required:
+        - categoryId
+        - categoryName
+        - amount
+        - percentage
+      properties:
+        categoryId:
+          type: string
+          format: uuid
+        categoryName:
+          type: string
+          example: Makanan & Minuman
+        categoryColor:
+          type: string
+          nullable: true
+          example: '#F59E0B'
+        categoryIcon:
+          type: string
+          nullable: true
+          example: utensils
+        amount:
+          type: number
+          format: double
+          example: 1750000.00
+        percentage:
+          type: number
+          format: double
+          example: 32.41
+
+    DashboardSummaryDto:
+      type: object
+      required:
+        - month
+        - year
+        - totalIncome
+        - totalExpense
+        - balance
+        - cumulativeBalance
+        - transactionCount
+        - cashflowSeries
+        - expenseByCategory
+        - budgetProgress
+        - recentTransactions
+        - generatedAt
+        - fromCache
+      properties:
+        month:
+          type: integer
+          example: 11
+        year:
+          type: integer
+          example: 2026
+        totalIncome:
+          type: number
+          format: double
+          example: 12000000.00
+        totalExpense:
+          type: number
+          format: double
+          example: 5400000.00
+        balance:
+          type: number
+          format: double
+          description: Selisih pemasukan dan pengeluaran pada bulan/tahun terpilih
+          example: 6600000.00
+        cumulativeBalance:
+          type: number
+          format: double
+          description: Total saldo kumulatif sepanjang waktu (seluruh pemasukan dikurangi seluruh pengeluaran)
+          example: 28500000.00
+        transactionCount:
+          type: integer
+          format: int64
+          example: 18
+        cashflowSeries:
+          type: array
+          items:
+            $ref: '#/components/schemas/MonthlyCashflowDto'
+        expenseByCategory:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryBreakdownDto'
+        budgetProgress:
+          type: array
+          items:
+            $ref: '#/components/schemas/BudgetDto'
+        recentTransactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransactionDto'
+        generatedAt:
+          type: string
+          format: date-time
+          description: Waktu agregasi ringkasan dashboard dibuat (untuk indikator sinkronisasi data)
+          example: '2026-11-21T13:30:00Z'
+        fromCache:
+          type: boolean
+          description: Bernilai true jika data dilayani dari cache Redis/memori, false jika baru dihitung dari database
+          example: false
+
+    BudgetAlertDto:
+      type: object
+      required:
+        - id
+        - categoryId
+        - categoryName
+        - month
+        - year
+        - amountLimit
+        - spentAmount
+        - utilizationPercentage
+        - message
+        - isRead
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        budgetId:
+          type: string
+          format: uuid
+          nullable: true
+        categoryId:
+          type: string
+          format: uuid
+        categoryName:
+          type: string
+          example: Makanan & Minuman
+        categoryColor:
+          type: string
+          nullable: true
+          example: '#F59E0B'
+        month:
+          type: integer
+          example: 11
+        year:
+          type: integer
+          example: 2026
+        amountLimit:
+          type: number
+          format: double
+          example: 2000000.00
+        spentAmount:
+          type: number
+          format: double
+          example: 2350000.00
+        utilizationPercentage:
+          type: number
+          format: double
+          example: 117.5
+        message:
+          type: string
+          example: Pengeluaran kategori Makanan & Minuman pada Nov 2026 mencapai 117.50% dari batas anggaran.
+        isRead:
+          type: boolean
+          example: false
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    AlertListResponse:
+      type: object
+      required:
+        - unreadCount
+        - alerts
+      properties:
+        unreadCount:
+          type: integer
+          format: int64
+          example: 2
+        alerts:
+          type: array
+          items:
+            $ref: '#/components/schemas/BudgetAlertDto'
+
+    CreateReportExportRequest:
+      type: object
+      required:
+        - month
+        - year
+        - format
+      properties:
+        month:
+          type: integer
+          minimum: 1
+          maximum: 12
+          example: 11
+        year:
+          type: integer
+          minimum: 2020
+          maximum: 2100
+          example: 2026
+        format:
+          $ref: '#/components/schemas/ReportFormat'
+
+    ReportExportDto:
+      type: object
+      required:
+        - id
+        - month
+        - year
+        - format
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        month:
+          type: integer
+          example: 11
+        year:
+          type: integer
+          example: 2026
+        format:
+          $ref: '#/components/schemas/ReportFormat'
+        status:
+          $ref: '#/components/schemas/ReportStatus'
+        fileName:
+          type: string
+          nullable: true
+          example: finpulse-report-2026-11.pdf
+        fileUrl:
+          type: string
+          nullable: true
+          example: https://xyz.supabase.co/storage/v1/object/public/reports/user-id/reports/finpulse-2026-11-uuid.pdf
+        contentType:
+          type: string
+          nullable: true
+          example: application/pdf
+        sizeBytes:
+          type: integer
+          format: int64
+          nullable: true
+          example: 48210
+        errorMessage:
+          type: string
+          nullable: true
+          example: null
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    ErrorResponse:
+      type: object
+      required:
+        - timestamp
+        - status
+        - error
+        - message
+        - path
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          example: '2026-11-21T11:00:00Z'
+        status:
+          type: integer
+          example: 400
+        error:
+          type: string
+          example: Bad Request
+        message:
+          type: string
+          example: Validasi input gagal
+        path:
+          type: string
+          example: /api/auth/register
+        validationErrors:
+          type: object
+          nullable: true
+          additionalProperties:
+            type: string
+          example:
+            email: Format email tidak valid

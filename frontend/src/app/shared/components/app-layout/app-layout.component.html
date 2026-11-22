@@ -1,0 +1,209 @@
+<div class="fp-dot-grid min-h-screen text-fp-ink">
+  <!-- Mobile backdrop -->
+  @if (isMobileMenuOpen()) {
+    <div
+      class="fixed inset-0 z-30 bg-fp-ink/60 backdrop-blur-[2px] transition-opacity lg:hidden"
+      (click)="closeMobileMenu()"
+      aria-hidden="true"
+    ></div>
+  }
+
+  <!-- Sidebar -->
+  <aside
+    class="fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r-[3px] border-fp-ink bg-[#0F172A] text-white transition-transform duration-200 ease-in-out lg:translate-x-0"
+    [class.translate-x-0]="isMobileMenuOpen()"
+    [class.-translate-x-full]="!isMobileMenuOpen()"
+    aria-label="Navigasi utama"
+  >
+    <!-- Brand -->
+    <div class="flex h-16 items-center justify-between border-b-2 border-slate-800 px-5">
+      <a
+        routerLink="/dashboard"
+        (click)="closeMobileMenu()"
+        class="group flex items-center gap-3 focus:outline-none"
+      >
+        <div class="flex h-10 w-10 items-center justify-center rounded-xl border-2 border-fp-ink bg-[#00D68F] text-fp-ink shadow-[2px_2px_0px_0px_#FACC15] transition-transform duration-150 group-hover:-translate-y-0.5">
+          <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.6">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 12h3l3-7 4 14 3-7h5" />
+          </svg>
+        </div>
+        <div>
+          <span class="block text-lg font-bold tracking-tight text-white">FinPulse</span>
+          <span class="block text-[10px] font-bold uppercase tracking-widest text-[#00D68F]">Kinetic Finance</span>
+        </div>
+      </a>
+
+      <button
+        type="button"
+        (click)="closeMobileMenu()"
+        class="rounded-lg border-2 border-slate-700 p-1.5 text-slate-300 hover:border-white hover:text-white lg:hidden"
+        aria-label="Tutup menu"
+      >
+        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Navigation links -->
+    <nav class="flex-1 space-y-2 overflow-y-auto px-3 py-5">
+      <p class="px-3 pb-1 text-[11px] font-bold uppercase tracking-widest text-slate-400">
+        Menu Utama
+      </p>
+
+      @for (item of navItems; track item.route) {
+        <a
+          [routerLink]="item.route"
+          routerLinkActive="active-nav !bg-[#1E293B] !text-[#FAF8F5] !border-[#FACC15] !shadow-[3px_3px_0px_0px_#FACC15] font-bold"
+          [routerLinkActiveOptions]="{ exact: false }"
+          (click)="closeMobileMenu()"
+          class="group flex items-center justify-between rounded-xl border-2 border-transparent px-3 py-2.5 text-sm font-semibold text-slate-300 transition-all duration-150 hover:border-[#00D68F] hover:bg-slate-800 hover:text-[#FAF8F5] hover:shadow-[3px_3px_0px_0px_#00D68F] active:translate-x-[2px] active:translate-y-[2px]"
+        >
+          <span class="flex items-center gap-3">
+            @switch (item.icon) {
+              @case ('dashboard') {
+                <svg class="h-5 w-5 shrink-0 text-[#00D68F] transition-colors group-hover:text-[#FACC15] group-[.active-nav]:text-[#FACC15]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.1">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
+                </svg>
+              }
+              @case ('transactions') {
+                <svg class="h-5 w-5 shrink-0 text-[#00D68F] transition-colors group-hover:text-[#FACC15] group-[.active-nav]:text-[#FACC15]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.1">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                </svg>
+              }
+              @case ('budgets') {
+                <svg class="h-5 w-5 shrink-0 text-[#00D68F] transition-colors group-hover:text-[#FACC15] group-[.active-nav]:text-[#FACC15]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.1">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+                </svg>
+              }
+              @case ('reports') {
+                <svg class="h-5 w-5 shrink-0 text-[#00D68F] transition-colors group-hover:text-[#FACC15] group-[.active-nav]:text-[#FACC15]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.1">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              }
+            }
+            <span class="text-[#FAF8F5]">{{ item.label }}</span>
+          </span>
+
+          @if (item.badge) {
+            <span class="rounded-md border border-slate-600 bg-slate-800 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-300">
+              {{ item.badge }}
+            </span>
+          }
+        </a>
+      }
+    </nav>
+
+    <!-- Sidebar bottom card -->
+    <div class="border-t-2 border-slate-800 p-4">
+      <div class="rounded-xl border-2 border-slate-700 bg-slate-900/90 p-3.5 shadow-[3px_3px_0px_0px_#00D68F]">
+        <div class="flex items-center gap-2">
+          <span class="fp-beat-dot h-2.5 w-2.5 rounded-full bg-[#00D68F]"></span>
+          <span class="text-xs font-bold uppercase tracking-wider text-white">Pulse Engine On</span>
+        </div>
+        <p class="mt-1.5 text-xs font-medium leading-relaxed text-slate-400">
+          Pantau transaksi, pengingat anggaran, &amp; ekspor PDF/CSV.
+        </p>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main column -->
+  <div class="flex min-h-screen flex-col lg:pl-64">
+    <!-- Top Header -->
+    <header class="sticky top-0 z-20 flex h-16 items-center justify-between border-b-[3px] border-fp-ink bg-fp-paper/95 px-4 backdrop-blur sm:px-6 lg:px-8">
+      <div class="flex items-center gap-3">
+        <button
+          type="button"
+          (click)="toggleMobileMenu()"
+          class="fp-btn-sm inline-flex items-center justify-center rounded-lg bg-white p-2 text-fp-ink lg:hidden"
+          aria-label="Buka menu navigasi"
+        >
+          <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-sm font-bold tracking-tight text-fp-ink sm:text-base">Ruang Kerja FinPulse</span>
+
+          @if (syncLabel(); as label) {
+            <span
+              data-testid="header-sync-pill"
+              [title]="syncTooltip()"
+              class="hidden items-center gap-1.5 rounded-lg border-2 border-fp-ink px-2.5 py-0.5 text-[11px] font-bold shadow-brutal-sm sm:inline-flex"
+              [ngClass]="{
+                'bg-[#FACC15] text-fp-ink': syncStatus() === 'syncing',
+                'bg-[#00D68F] text-fp-ink': syncStatus() === 'synced' && syncSource() === 'CACHE',
+                'bg-sky-200 text-fp-ink': syncStatus() === 'synced' && syncSource() !== 'CACHE',
+                'bg-[#FF4D6D] text-white': syncStatus() === 'error'
+              }"
+            >
+              <span
+                class="h-2 w-2 rounded-full border border-fp-ink"
+                [ngClass]="{
+                  'animate-pulse bg-fp-ink': syncStatus() === 'syncing',
+                  'bg-fp-ink': syncStatus() === 'synced',
+                  'bg-white': syncStatus() === 'error'
+                }"
+              ></span>
+              <span>{{ label }}</span>
+            </span>
+          } @else {
+            <span class="hidden rounded-lg border-2 border-fp-ink bg-[#00D68F] px-2.5 py-0.5 text-[11px] font-bold text-fp-ink shadow-brutal-sm sm:inline-flex">
+              Terhubung
+            </span>
+          }
+        </div>
+      </div>
+
+      <!-- Alert Panel, User info & Logout -->
+      <div class="flex items-center gap-2.5 sm:gap-3.5">
+        <app-alert-panel />
+
+        @if (currentUser(); as user) {
+          <div class="flex items-center gap-2.5">
+            <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border-2 border-fp-ink bg-[#FACC15] text-xs font-bold text-fp-ink shadow-brutal-sm">
+              {{ userInitials() }}
+            </div>
+            <div class="hidden text-right sm:block">
+              <p class="max-w-[180px] truncate text-sm font-bold text-fp-ink">{{ user.fullName }}</p>
+              <p class="max-w-[180px] truncate text-xs font-medium text-slate-600">{{ user.email }}</p>
+            </div>
+          </div>
+        } @else {
+          <div class="hidden items-center gap-2 sm:flex">
+            <div class="h-9 w-9 animate-pulse rounded-xl border-2 border-fp-ink bg-slate-200"></div>
+            <div class="space-y-1.5">
+              <div class="h-3 w-24 animate-pulse rounded bg-slate-200"></div>
+              <div class="h-2.5 w-32 animate-pulse rounded bg-slate-200"></div>
+            </div>
+          </div>
+        }
+
+        <button
+          type="button"
+          (click)="onLogout()"
+          [disabled]="isLoggingOut()"
+          class="fp-btn-sm inline-flex items-center gap-2 rounded-xl bg-white px-3.5 py-2 text-sm font-bold text-fp-ink hover:bg-[#FF4D6D] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          @if (isLoggingOut()) {
+            <app-spinner size="sm" colorClass="text-fp-ink" />
+            <span>Keluar...</span>
+          } @else {
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            <span>Keluar</span>
+          }
+        </button>
+      </div>
+    </header>
+
+    <!-- Page content with kinetic route transition -->
+    <main class="flex-1 p-4 sm:p-6 lg:p-8" [@routeTransition]="routeAnimationState()">
+      <router-outlet />
+    </main>
+  </div>
+</div>
