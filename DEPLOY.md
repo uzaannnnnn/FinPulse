@@ -11,7 +11,7 @@ Dokumen ini menjelaskan langkah deploy produksi **FinPulse** (Frontend Angular 1
 | Komponen | Layanan Rekomendasi | URL Produksi |
 | --- | --- | --- |
 | Frontend (Angular 19 + Prerender) | Vercel | `https://finpulse.eshace.com` |
-| Backend REST API (Spring Boot 3 / Docker) | Render / Railway / Google Cloud Run | `https://api.finpulse.eshace.com` |
+| Backend REST API (Spring Boot 3 / Docker) | Render / Railway / Google Cloud Run | `https://api-finpulse.eshace.com` |
 | Database & Object Storage | Supabase (PostgreSQL + Storage) | `https://<project-ref>.supabase.co` |
 | Cache (Opsional / Hemat) | Upstash Redis atau `simple` in-memory | `rediss://...` |
 | Message Broker (Opsional / Hemat) | CloudAMQP atau listener nonaktif | `amqps://...` |
@@ -49,7 +49,7 @@ Saat `npm run build` dijalankan, Angular otomatis mengganti `src/environments/en
 ```ts
 export const environment = {
   production: true,
-  apiUrl: 'https://api.finpulse.eshace.com/api',
+  apiUrl: 'https://api-finpulse.eshace.com/api',
 };
 ```
 
@@ -58,7 +58,7 @@ export const environment = {
 
 ---
 
-## 2. Deploy Backend ke Render / Railway / Google Cloud Run + Subdomain `api.finpulse.eshace.com`
+## 2. Deploy Backend ke Render / Railway / Google Cloud Run + Subdomain `api-finpulse.eshace.com`
 
 Backend sudah dilengkapi `backend/Dockerfile` (multi-stage Maven + Eclipse Temurin 21 JRE Alpine, user non-root `finpulse`, `SPRING_PROFILES_ACTIVE=prod`, optimasi RAM JVM, dan `HEALTHCHECK` ke `/actuator/health`).
 
@@ -77,7 +77,7 @@ Backend sudah dilengkapi `backend/Dockerfile` (multi-stage Maven + Eclipse Temur
 2. Pada **Settings -> Source**, atur **Root Directory** ke `backend` (Railway otomatis mendeteksi `Dockerfile`).
 3. Pada **Settings -> Deploy**, atur **Healthcheck Path** ke `/actuator/health`.
 4. Masukkan Environment Variables dari [Bagian 3](#3-daftar-lengkap-environment-variables-produksi) (tambahkan `SERVER_PORT=8080` atau samakan dengan target port di Railway Networking).
-5. Aktifkan **Public Networking -> Generate Domain** atau tambahkan custom domain `api.finpulse.eshace.com`.
+5. Aktifkan **Public Networking -> Generate Domain** atau tambahkan custom domain `api-finpulse.eshace.com`.
 
 ### Opsi C: Google Cloud Run
 1. Build dan push image Docker ke Artifact Registry (atau deploy langsung dari source):
@@ -93,9 +93,9 @@ Backend sudah dilengkapi `backend/Dockerfile` (multi-stage Maven + Eclipse Temur
 2. Simpan secret sensitif (`SUPABASE_DB_PASSWORD`, `SUPABASE_SERVICE_KEY`, `JWT_SECRET`, dll.) di **Google Secret Manager** lalu mount sebagai environment variables di Cloud Run.
 3. Atur startup/liveness probe HTTP GET ke `/actuator/health` pada port `8080`.
 
-### Konfigurasi Custom Subdomain `api.finpulse.eshace.com` (Opsional)
-Jika ingin memakai subdomain rapi `https://api.finpulse.eshace.com`:
-1. Tambahkan `api.finpulse.eshace.com` pada menu **Custom Domains** di Render / Railway / Cloud Run Domain Mapping.
+### Konfigurasi Custom Subdomain `api-finpulse.eshace.com` (Opsional)
+Jika ingin memakai subdomain rapi `https://api-finpulse.eshace.com`:
+1. Tambahkan `api-finpulse.eshace.com` pada menu **Custom Domains** di Render / Railway / Cloud Run Domain Mapping.
 2. Tambahkan record DNS `CNAME` pada panel DNS `eshace.com` sesuai target yang diberikan platform:
 
 | Type | Name / Host | Target / Value (Contoh) | Catatan |
@@ -104,7 +104,7 @@ Jika ingin memakai subdomain rapi `https://api.finpulse.eshace.com`:
 
 3. Verifikasi endpoint health setelah SSL aktif:
    ```bash
-   curl -i https://api.finpulse.eshace.com/actuator/health
+   curl -i https://api-finpulse.eshace.com/actuator/health
    ```
    Respons yang diharapkan: HTTP `200 OK` dengan body `{"status":"UP"}`.
 
