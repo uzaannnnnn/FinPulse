@@ -1,124 +1,87 @@
-# FinPulse — Personal Finance & Expense Dashboard
+# FinPulse
 
-**Live Application:** [https://finpulse.eshace.com](https://finpulse.eshace.com)
+**Track everyday income and expenses, visualize monthly cashflow, set smart category budgets, and export financial reports in one tactile workspace.**
 
-**FinPulse** is a full-stack personal finance and expense management platform built with **Angular 19**, **Spring Boot 3 (Java 21)**, **Supabase (PostgreSQL & Storage)**, **Redis**, and **RabbitMQ**. Designed with a Tactile Neo-Brutalist Kinetic UI, it helps individuals track income and expenses, attach receipt photos, enforce monthly category budgets with real-time over-budget alerts, analyze multi-month cashflow trends, and export monthly PDF/CSV financial reports asynchronously.
+### [**Live Application — https://finpulse.eshace.com**](https://finpulse.eshace.com)
 
----
-
-## Key Features
-
-- **JWT Authentication & Refresh Token Rotation**: Secure registration, login, short-lived HMAC-SHA256 access tokens, rotating database-backed refresh tokens with pessimistic locking, and strict per-user data isolation across every private endpoint.
-- **Transaction Management & Receipt Storage**: Full CRUD with server-side pagination, date range/type/category/search filtering, and receipt photo uploads (JPEG, PNG, WebP up to 5 MB with magic-byte validation) stored in **Supabase Storage**.
-- **Monthly Budgets & Real-Time Over-Budget Alerts**: Category spending limits with real-time utilization progress bars (`Safe`, `Near Limit`, `Over Budget`) and asynchronous over-budget detection powered by **RabbitMQ** (`finpulse.transaction.created` consumer with unread alert deduplication).
-- **Interactive Analytics Dashboard**: Asymmetric Bento Grid dashboard featuring 3D perspective wallet card, rolling odometer figures, a living SVG **FinPulse Vital** heartbeat widget driven by monthly burn ratio, 6-month cashflow bar chart, and category breakdown doughnut chart with custom external HTML tooltips.
-- **Redis Caching & Post-Commit Invalidation**: Dashboard analytics cached in **Redis** (JSON serialization, configurable TTL) with per-user `TransactionSynchronization.afterCommit()` invalidation to prevent stale-read race conditions and automatic database fallback on cache outages.
-- **Asynchronous PDF & CSV Report Exports**: Non-blocking monthly report generation via **RabbitMQ** (`finpulse.report.export`) using **OpenPDF** and RFC 4180 CSV (with CSV formula injection protection), uploaded to Supabase Storage with live frontend status polling.
-- **Production SEO & Static Prerendering**: Public landing page at `/` prerendered at build time via Angular SSR/Prerender with dynamic Open Graph/Twitter cards, JSON-LD `SoftwareApplication` structured data, `robots.txt`, `sitemap.xml`, and `noindex` isolation for authenticated routes.
+[![Angular 19+](https://img.shields.io/badge/Angular-19%2B-DD0031?logo=angular&logoColor=white)](https://angular.dev)
+[![Spring Boot 3](https://img.shields.io/badge/Spring_Boot-3.5-6DB33F?logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
+[![Java 21](https://img.shields.io/badge/Java-21-ED8B00?logo=openjdk&logoColor=white)](https://openjdk.org)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Supabase-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com)
+[![Redis](https://img.shields.io/badge/Redis-Upstash-DC382D?logo=redis&logoColor=white)](https://upstash.com)
+[![RabbitMQ](https://img.shields.io/badge/RabbitMQ-CloudAMQP-FF6600?logo=rabbitmq&logoColor=white)](https://www.cloudamqp.com)
+[![Tests](https://img.shields.io/badge/Automated_Tests-185_Passing-10B981)](#engineering-highlights)
 
 ---
 
-## Architecture Overview
+## Product Preview
+
+| Public Landing Page | Personal Finance Dashboard |
+| :---: | :---: |
+| ![FinPulse Landing Page](docs/assets/preview-landing.png) | ![FinPulse Dashboard](docs/assets/preview-dashboard.png) |
+
+---
+
+## Core Features
+
+- **Real-Time Financial Pulse Dashboard** — View monthly net balance, total income, total expenses, six-month cashflow trends, and category spending breakdowns at a glance, accompanied by an adaptive financial health indicator.
+- **Income & Expense Ledger with Receipt Attachments** — Record and filter transactions by period, type, category, or keyword search, and attach digital receipt photos directly to expense entries.
+- **Category Budgets & Proactive Spending Alerts** — Set monthly spending limits per category with live utilization progress bars and receive automatic notifications when spending reaches warning (`80%`) or exceeded (`100%`) thresholds.
+- **One-Click Monthly Report Exports** — Generate and download formatted monthly financial summaries in **PDF** or **CSV** complete with KPI totals, budget utilization, and itemized transactions.
+- **Tactile Neo-Brutalist Responsive Interface** — High-contrast card hierarchy, smooth rolling numeric counters, keyboard-accessible custom controls, and seamless desktop-to-mobile responsiveness.
+
+---
+
+## System Architecture & Production Topology
 
 ```mermaid
 flowchart LR
-    U[Browser / Mobile] -->|HTTPS| FE["Frontend\nAngular 19 + Tailwind\n(Vercel)"]
-    FE -->|REST API + JWT| BE["Backend API\nSpring Boot 3 / Java 21\n(Render / Railway / Cloud Run)"]
-    BE -->|JPA + Flyway| DB[(Supabase PostgreSQL)]
-    BE -->|REST Storage API| ST[(Supabase Storage\nreceipts & reports)]
-    BE -->|Cache / Post-Commit Evict| RD[(Redis / Upstash)]
-    BE -->|Publish Events| MQ[(RabbitMQ / CloudAMQP)]
-    MQ -->|finpulse.transaction.created| C1[Over-Budget Alert Consumer]
-    MQ -->|finpulse.report.export| C2[PDF/CSV Report Worker]
-    C1 --> DB
-    C2 --> DB
-    C2 --> ST
+    subgraph Client["Client & Edge (Vercel)"]
+        Browser["Web Browser\nhttps://finpulse.eshace.com"]
+        Angular["Angular 19+ SPA\nSignals + Static Prerendering"]
+    end
+
+    subgraph Backend["Application Tier (Render Docker)"]
+        API["Spring Boot 3 REST API\nhttps://api-finpulse.eshace.com"]
+        Worker["Async Event Consumers\nBudget Alert & Report Worker"]
+    end
+
+    subgraph Data["Managed Cloud Data & Messaging"]
+        PG[("Supabase PostgreSQL\nCore Ledger & Flyway Schema")]
+        Storage[("Supabase Storage\nreceipts & reports Buckets")]
+        Redis[("Upstash Redis (TLS)\nDashboard Summary Cache")]
+        RMQ[["CloudAMQP RabbitMQ (AMQPS)\nfinpulse.eventsTopic Exchange"]]
+    end
+
+    Browser --> Angular
+    Angular -->|HTTPS REST + JWT| API
+    API -->|Cache Aside| Redis
+    API -->|JPA / HikariCP| PG
+    API -->|REST Object Upload| Storage
+    API -->|Publish Domain Events| RMQ
+    RMQ -->|Consume Queues| Worker
+    Worker -->|Persist Alerts & Jobs| PG
+    Worker -->|Upload PDF / CSV| Storage
 ```
 
-### Tech Stack
-
-| Layer | Technologies |
-|---|---|
-| **Frontend** | Angular 19 (Standalone Components, Signals, Reactive Forms), Tailwind CSS, Chart.js, Angular Animations, Static Prerendering (`@angular/ssr`) |
-| **Backend** | Spring Boot 3.5 (Java 21), Spring Security + JJWT, Spring Data JPA, Flyway, Spring Data Redis, Spring AMQP, OpenPDF, Springdoc OpenAPI |
-| **Database & Storage** | Supabase PostgreSQL (Flyway `V1`–`V3`), Supabase Storage (`receipts` & `reports` buckets) |
-| **Caching & Messaging** | Redis 7 (local Docker / Upstash TLS), RabbitMQ 3.13 (local Docker / CloudAMQP TLS) |
-| **Deployment** | Vercel (Frontend), Multi-stage Docker (`eclipse-temurin:21-jre-alpine`) for Render / Railway / Google Cloud Run |
+| Layer | Technology | Production Platform |
+| --- | --- | --- |
+| **Frontend Web** | Angular 19+ (Standalone Components, Signals, Tailwind CSS, Chart.js, SSR Prerendering) | **Vercel** (`https://finpulse.eshace.com`) |
+| **Backend API & Worker** | Spring Boot 3.5, Java 21, Spring Security JWT, Spring Data JPA, OpenPDF | **Render** — Multi-Stage Docker (`https://api-finpulse.eshace.com`) |
+| **Primary Database** | PostgreSQL 17 with Flyway Versioned Schema Migrations (`V1`–`V3`) | **Supabase PostgreSQL** (`ap-southeast-1`) |
+| **Object Storage** | Public Bucket Storage for Receipt Images (`receipts`) & Exported Reports (`reports`) | **Supabase Storage** |
+| **Distributed Cache** | Redis Cache-Aside for Monthly Dashboard Aggregations | **Upstash Redis** (Serverless TLS) |
+| **Message Broker** | AMQP Topic Exchange (`finpulse.events`) for Over-Budget Alerts & Report Generation | **CloudAMQP** (Managed RabbitMQ TLS) |
 
 ---
 
-## Repository Structure
+## Engineering Highlights
 
-```text
-FinPulse/
-├── backend/                  # Spring Boot 3 REST API, Flyway migrations, Dockerfile, 72 JUnit/MockMvc tests
-├── frontend/                 # Angular 19 SPA + static prerendered landing page, vercel.json, 113 Karma specs
-├── docs/
-│   ├── api_contract.yaml     # OpenAPI 3.0.3 contract (source of truth)
-│   ├── specs/                # Sprint 1–3 technical specifications
-│   └── qa/                   # Sprint 1–3 QA & security audit reports
-├── .agents/                  # Spec-driven multi-agent role definitions, skills, and sprint workflow
-├── docker-compose.yml        # Local Redis & RabbitMQ with healthchecks
-├── .env.example              # Environment variable template (no real secrets)
-└── DEPLOY.md                 # Production deployment & SEO verification guide
-```
-
----
-
-## Local Quick Start
-
-### Prerequisites
-- **Java 21+** and **Maven 3.9+**
-- **Node.js 20+** and **npm**
-- **Docker** (for local Redis & RabbitMQ)
-- A **Supabase** project (PostgreSQL connection string + public Storage buckets `receipts` and `reports`)
-
-### 1. Configure Environment
-Copy `.env.example` to `.env` in the repository root and fill in your Supabase credentials and a 32+ character `JWT_SECRET`:
-
-```bash
-cp .env.example .env
-```
-
-### 2. Start Local Redis & RabbitMQ
-```bash
-docker compose up -d
-```
-
-### 3. Run the Backend API
-Spring Boot automatically imports `../.env` via `spring.config.import` and runs Flyway migrations (`V1`–`V3`):
-
-```bash
-cd backend
-mvn spring-boot:run
-```
-
-### 4. Run the Frontend Web App
-```bash
-cd frontend
-npm install
-npm start
-```
-
-### Local Endpoints
-- **Frontend**: `http://localhost:4200`
-- **Backend API**: `http://localhost:8080`
-- **Swagger UI (dev)**: `http://localhost:8080/swagger-ui.html`
-- **RabbitMQ Management UI**: `http://localhost:15672`
-
-For production deployment (Vercel + Render/Railway/Cloud Run + Upstash + CloudAMQP + DNS & SEO verification), see **[DEPLOY.md](DEPLOY.md)** and the OpenAPI contract in **[docs/api_contract.yaml](docs/api_contract.yaml)**.
-
----
-
-## Spec-Driven & Agentic Engineering Workflow
-
-FinPulse was engineered using an OpenAPI-first, multi-agent workflow defined in `.agents/`:
-
-1. **Architect (`@architect`)**: Authors sprint specifications (`docs/specs/spec_sprint_<N>.md`) and updates the OpenAPI contract (`docs/api_contract.yaml`), stopping at a mandatory **Approval Gate** before any application code is written.
-2. **Parallel Implementation (`@backend` & `@frontend`)**: Implements Spring Boot services and Angular standalone features strictly against the locked API contract.
-3. **QA & Security Audit (`@qa`)**: Audits contract alignment, user-level data isolation, input/file/CSV/URL security, and Redis/RabbitMQ edge cases, documenting findings in `docs/qa/qa_report_sprint_<N>.md`.
-4. **DevOps & Verification (`@devops`)**: Manages Docker, CI/local verification, and production deployment readiness.
-
-**Automated Test Coverage: 185 passing tests**
-- **Backend**: `72` JUnit 5 & MockMvc integration/unit tests (`mvn test`)
-- **Frontend**: `113` Jasmine/Karma unit & component specs (`ng test --watch=false --browsers=ChromeHeadless`)
+- **Contract-First OpenAPI 3.0 Design** — All REST endpoints, DTO schemas, validation constraints, and error envelopes are strictly governed by [`docs/api_contract.yaml`](docs/api_contract.yaml).
+- **Versioned Database Migrations & Indexing** — Deterministic schema evolution via Flyway (`V1__init_schema.sql`, `V2__transactions_budgets.sql`, `V3__alerts_and_report_exports.sql`) with composite indexes and pessimistic write locking on token rotation.
+- **Stateless JWT Security & Refresh Token Rotation** — Short-lived HMAC-SHA256 access tokens paired with database-backed refresh token rotation, automatic revocation, and strict per-user data isolation across every query.
+- **Fault-Tolerant Redis Caching with Automatic Invalidation** — Dashboard aggregations are cached per user and period with deterministic eviction on any transaction or budget mutation and graceful database fallback on cache errors.
+- **Event-Driven RabbitMQ Background Processing** — Transaction mutations and report export requests publish domain events after transaction commit (`afterCommit`) to dedicated queues for threshold alerting and asynchronous PDF/CSV generation.
+- **Static Prerendering & Technical SEO** — Build-time prerendering for the public landing route (`/`), dynamic per-route title/meta tags, Open Graph & Twitter Cards, `robots.txt`, and `sitemap.xml`.
+- **185 Automated Tests Passing** — **72** backend unit & MockMvc integration tests (JUnit 5, H2, Mockito) and **113** frontend unit tests (Jasmine & Karma Headless Chrome).
+- **Spec-Driven Agentic Engineering Workflow** — Built through an orchestrated multi-role pipeline (`.agents/` — `@architect`, `@backend`, `@frontend`, `@qa`, `@reviewer`, `@devops`) backed by sprint specifications (`docs/specs/`) and QA/refactoring audit reports (`docs/qa/`).

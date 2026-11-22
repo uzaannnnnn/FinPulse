@@ -1,7 +1,7 @@
 # Skill: DevOps Setup & Local Verification (`@devops`)
 
 ## Objective
-Menyiapkan environment lokal & produksi **FinPulse** (`docker-compose.yml`, `.env.example`, `backend/Dockerfile`, `frontend/vercel.json`, `DEPLOY.md`), memverifikasi *build* dan *test* berjalan sukses, serta menyalakan aplikasi lokal.
+Menyiapkan environment lokal & produksi **FinPulse** (`docker-compose.yml`, `.env.example`, `backend/Dockerfile`, `frontend/vercel.json`), memverifikasi *build* dan *test* berjalan sukses, serta menyalakan aplikasi lokal.
 
 ## Rules of Engagement
 - Jangan pernah commit atau menulis nilai kredensial asli; selalu sediakan `.env.example` di root dengan penjelasan tiap variabel.

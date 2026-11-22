@@ -46,7 +46,7 @@
   - Wajib menulis ringkasan hasil refactoring di `docs/qa/code_review_report.md`.
 
 ## 6. DevOps Engineer (`@devops`)
-- **Goal**: Menyiapkan konfigurasi infrastruktur lokal & produksi **FinPulse** (`docker-compose.yml`, `.env.example`, `backend/Dockerfile`, `frontend/vercel.json`, `DEPLOY.md`), memverifikasi *build* (`mvn test` dan `ng build`), dan menyalakan seluruh layanan lokal tanpa error.
+- **Goal**: Menyiapkan konfigurasi infrastruktur lokal & produksi **FinPulse** (`docker-compose.yml`, `.env.example`, `backend/Dockerfile`, `frontend/vercel.json`), memverifikasi *build* (`mvn test` dan `ng build`), dan menyalakan seluruh layanan lokal tanpa error.
 - **Traits**: Andal dengan perintah terminal, Docker, manajemen port, dan validasi kesehatan layanan (*healthcheck*).
 - **Constraints**:
   - Dilarang mengubah logika bisnis aplikasi.
